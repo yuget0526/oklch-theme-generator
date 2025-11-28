@@ -16,6 +16,7 @@ import PalettePreview from "./PalettePreview";
 import ColorGroupCreator from "./ColorGroupCreator";
 import CodeExporter from "./CodeExporter";
 import NestedLayerPreview from "@/components/NestedLayerPreview";
+import ShareButton from "@/components/ShareButton";
 import {
   LayoutDashboard,
   Palette,
@@ -260,7 +261,6 @@ export default function ColorGenerator() {
 
   const sidebarProps = {
     baseMode,
-    setBaseMode: handleModeChange,
     layerCount,
     setLayerCount: handleLayerCountChange,
     layerDirection,
@@ -326,7 +326,19 @@ export default function ColorGenerator() {
               </TabsTrigger>
             </TabsList>
 
-            <div className="w-8"></div>
+            <div className="flex items-center gap-2">
+              <ShareButton targetRef={previewRef} />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  handleModeChange(baseMode === "light" ? "dark" : "light")
+                }
+                title="テーマ切り替え"
+              >
+                {baseMode === "light" ? <Moon size={20} /> : <Sun size={20} />}
+              </Button>
+            </div>
           </header>
 
           <div className="flex-1 overflow-hidden relative">
@@ -334,21 +346,26 @@ export default function ColorGenerator() {
               value="preview"
               className="absolute inset-0 m-0 h-full w-full animate-in fade-in duration-300"
             >
-              <NestedLayerPreview
-                layers={activeLayers}
-                primary={primaryVariants}
-                secondary={secondaryVariants}
-                tertiary={tertiaryVariants}
-                mode={baseMode}
-                overrides={currentModeOverrides}
-              />
+              <div ref={previewRef} className="h-full w-full">
+                <NestedLayerPreview
+                  layers={activeLayers}
+                  primary={primaryVariants}
+                  secondary={secondaryVariants}
+                  tertiary={tertiaryVariants}
+                  mode={baseMode}
+                  overrides={currentModeOverrides}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent
               value="palette"
               className="absolute inset-0 m-0 h-full w-full overflow-y-auto p-4 md:p-8 animate-in fade-in duration-300"
             >
-              <div className="max-w-6xl mx-auto pb-20 space-y-12">
+              <div
+                ref={paletteRef}
+                className="max-w-6xl mx-auto pb-20 space-y-12"
+              >
                 <section>
                   <h2 className="text-2xl font-bold mb-6 flex items-center space-x-2">
                     <span>Active Theme ({baseMode})</span>
@@ -468,7 +485,6 @@ export default function ColorGenerator() {
 
 interface SidebarContentProps {
   baseMode: ThemeMode;
-  setBaseMode: (mode: ThemeMode) => void;
   layerCount: number;
   setLayerCount: (count: number) => void;
   layerDirection: "normal" | "inverted";
@@ -497,7 +513,6 @@ interface SidebarContentProps {
 
 function SidebarContent({
   baseMode,
-  setBaseMode,
   layerCount,
   setLayerCount,
   layerDirection,
@@ -536,13 +551,6 @@ function SidebarContent({
           </div>
           <span className="font-bold text-lg tracking-tight">OKLCH Gen</span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setBaseMode(baseMode === "light" ? "dark" : "light")}
-        >
-          {baseMode === "light" ? <Moon size={20} /> : <Sun size={20} />}
-        </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
