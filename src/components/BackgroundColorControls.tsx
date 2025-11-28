@@ -59,20 +59,20 @@ export default function BackgroundColorControls({
         <div className="space-y-0.5">
           <Label className="text-sm font-medium">Background Color</Label>
           <p className="text-xs text-muted-foreground">
-            {mode === "sync" ? "Primaryの色相と同期" : "カスタム設定"}
+            {mode === "sync" ? "Synced with Primary hue" : "Custom settings"}
           </p>
         </div>
         <Badge
           variant={mode === "sync" ? "default" : "secondary"}
           className="ml-2"
         >
-          {mode === "sync" ? "🔗 同期中" : "カスタム"}
+          {mode === "sync" ? "🔗 Synced" : "Custom"}
         </Badge>
       </div>
 
       <div className="flex items-center justify-between">
         <Label htmlFor="bg-mode" className="text-xs text-muted-foreground">
-          {mode === "sync" ? "Syncモード" : "Customモード"}
+          {mode === "sync" ? "Sync mode" : "Custom mode"}
         </Label>
         <Switch
           id="bg-mode"
@@ -141,8 +141,8 @@ export default function BackgroundColorControls({
                 </span>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300">
                   {chroma > MAX_CHROMA
-                    ? `可読性のため${MAX_CHROMA}に調整されます`
-                    : "推奨値(0.01以下)を超えています"}
+                    ? `Will be adjusted to ${MAX_CHROMA} for readability`
+                    : "Exceeds recommended value (≤0.01)"}
                 </p>
               </div>
             )}

@@ -78,8 +78,8 @@ export default function ColorGenerator() {
   const validateChroma = (chroma: number): number => {
     const MAX_CHROMA = 0.01;
     if (chroma > MAX_CHROMA) {
-      toast.info("可読性確保のため彩度を0.01に調整しました", {
-        description: "背景色の彩度が高すぎるため自動調整されました",
+      toast.info("Chroma adjusted to 0.01 for readability", {
+        description: "Background chroma was too high",
       });
       return MAX_CHROMA;
     }
@@ -127,10 +127,8 @@ export default function ColorGenerator() {
     // Validate and correct chroma if necessary
     const MAX_CHROMA = 0.01;
     if (chroma > MAX_CHROMA) {
-      toast.info("可読性確保のため彩度を0.01に調整しました", {
-        description: `入力された色の色相(${Math.round(
-          hue
-        )}°)を維持して彩度を調整しました`,
+      toast.info("Chroma adjusted to 0.01 for readability", {
+        description: `Hue (${Math.round(hue)}°) preserved, chroma corrected`,
       });
       chroma = MAX_CHROMA;
     }
