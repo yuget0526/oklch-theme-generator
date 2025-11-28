@@ -4,14 +4,12 @@ import React, { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 interface BackgroundColorControlsProps {
   mode: "sync" | "custom";
   hue: number;
   chroma: number;
-  primaryHue: number;
   currentHex: string;
   onModeChange: (isCustom: boolean) => void;
   onHueChange: (hue: number) => void;
@@ -23,7 +21,6 @@ export default function BackgroundColorControls({
   mode,
   hue,
   chroma,
-  primaryHue,
   currentHex,
   onModeChange,
   onHueChange,
@@ -54,76 +51,61 @@ export default function BackgroundColorControls({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header with Title and Preview */}
       <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Background Color</Label>
-          <p className="text-xs text-muted-foreground">
-            {mode === "sync" ? "Synced with Primary hue" : "Custom settings"}
-          </p>
+        <div className="space-y-1">
+          <Label className="text-base font-semibold">Background Color</Label>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="bg-mode"
+              checked={mode === "custom"}
+              onCheckedChange={onModeChange}
+              className="scale-75 origin-left"
+            />
+            <Label
+              htmlFor="bg-mode"
+              className="text-xs text-muted-foreground font-normal cursor-pointer"
+            >
+              {mode === "sync" ? "Sync mode" : "Custom mode"}
+            </Label>
+          </div>
         </div>
-        <Badge
-          variant={mode === "sync" ? "default" : "secondary"}
-          className="ml-2"
-        >
-          {mode === "sync" ? "🔗 Synced" : "Custom"}
-        </Badge>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <Label htmlFor="bg-mode" className="text-xs text-muted-foreground">
-          {mode === "sync" ? "Sync mode" : "Custom mode"}
-        </Label>
-        <Switch
-          id="bg-mode"
-          checked={mode === "custom"}
-          onCheckedChange={onModeChange}
+        <div
+          className="w-12 h-12 rounded-lg shadow-sm border border-border transition-colors duration-200"
+          style={{ backgroundColor: currentHex }}
+          aria-label="Background color preview"
         />
       </div>
 
+      {mode === "sync" && (
+        <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground flex items-center gap-2">
+          <span>🔗</span>
+          Synced with Primary hue (Chroma: 0.008)
+        </div>
+      )}
+
       {mode === "custom" && (
-        <div className="space-y-4 pt-2">
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+          {/* HEX Input */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">HEX Code</Label>
-              <span className="text-xs font-mono text-muted-foreground">
-                {currentHex}
-              </span>
-            </div>
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+              HEX Color
+            </Label>
             <Input
               value={hexInput}
               onChange={(e) => setHexInput(e.target.value)}
               onBlur={handleHexBlur}
               placeholder="#RRGGBB"
-              className="font-mono text-sm"
+              className="font-mono text-base h-10 bg-background"
             />
           </div>
 
-          <div className="space-y-2">
+          {/* Chroma Slider (C) */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Hue (H)</Label>
-              <span className="text-xs font-mono text-muted-foreground">
-                {Math.round(hue)}°
-              </span>
-            </div>
-            <Slider
-              min={0}
-              max={360}
-              step={1}
-              value={[hue]}
-              onValueChange={(vals) => onHueChange(vals[0])}
-            />
-            <p className="text-xs text-muted-foreground">
-              Primary: {Math.round(primaryHue)}°
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">
-                Chroma (C)
-              </Label>
-              <span className="text-xs font-mono text-muted-foreground">
+              <Label className="text-sm font-medium">Chroma (C)</Label>
+              <span className="text-sm font-mono text-muted-foreground">
                 {chroma.toFixed(3)}
               </span>
             </div>
@@ -133,19 +115,44 @@ export default function BackgroundColorControls({
               step={0.001}
               value={[chroma]}
               onValueChange={(vals) => onChromaChange(vals[0])}
+              className="py-1"
             />
             {chroma > WARNING_THRESHOLD && (
-              <div className="flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800">
-                <span className="text-yellow-600 dark:text-yellow-400 text-xs">
-                  ⚠️
-                </span>
-                <p className="text-xs text-yellow-700 dark:text-yellow-300">
+              <div className="flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800 text-xs">
+                <span className="text-yellow-600 dark:text-yellow-400">⚠️</span>
+                <p className="text-yellow-700 dark:text-yellow-300">
                   {chroma > MAX_CHROMA
-                    ? `Will be adjusted to ${MAX_CHROMA} for readability`
+                    ? `Will be adjusted to ${MAX_CHROMA}`
                     : "Exceeds recommended value (≤0.01)"}
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Hue Slider (H) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Hue (H)</Label>
+              <span className="text-sm font-mono text-muted-foreground">
+                {Math.round(hue)}°
+              </span>
+            </div>
+            <Slider
+              min={0}
+              max={360}
+              step={1}
+              value={[hue]}
+              onValueChange={(vals) => onHueChange(vals[0])}
+              className="py-1"
+            />
+            <div
+              className="h-2 w-full rounded-full opacity-20 mt-1"
+              style={{
+                background: `linear-gradient(to right, 
+                  oklch(0.6 0.2 0), oklch(0.6 0.2 60), oklch(0.6 0.2 120), 
+                  oklch(0.6 0.2 180), oklch(0.6 0.2 240), oklch(0.6 0.2 300), oklch(0.6 0.2 360))`,
+              }}
+            />
           </div>
         </div>
       )}

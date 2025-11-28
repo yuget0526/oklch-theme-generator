@@ -281,7 +281,6 @@ export default function ColorGenerator() {
     effectiveBgHue,
     effectiveBgChroma,
     currentBgHex,
-    primaryHue: primaryVariants[0].oklch.h || 0,
     handleBgModeChange,
     handleBgHueChange,
     handleBgChromaChange,
@@ -490,7 +489,6 @@ interface SidebarContentProps {
   effectiveBgHue: number;
   effectiveBgChroma: number;
   currentBgHex: string;
-  primaryHue: number;
   handleBgModeChange: (isCustom: boolean) => void;
   handleBgHueChange: (hue: number) => void;
   handleBgChromaChange: (chroma: number) => void;
@@ -520,7 +518,6 @@ function SidebarContent({
   effectiveBgHue,
   effectiveBgChroma,
   currentBgHex,
-  primaryHue,
   handleBgModeChange,
   handleBgHueChange,
   handleBgChromaChange,
@@ -584,7 +581,6 @@ function SidebarContent({
               hue={effectiveBgHue}
               chroma={effectiveBgChroma}
               currentHex={currentBgHex}
-              primaryHue={primaryHue}
               onModeChange={handleBgModeChange}
               onHueChange={handleBgHueChange}
               onChromaChange={handleBgChromaChange}
