@@ -11,12 +11,19 @@ interface OKLCHColorPickerProps {
   label: string;
   color: string; // HEX color
   onChange: (hex: string) => void;
+  mode?: "light" | "dark";
 }
+
+const RECOMMENDED_RANGES = {
+  light: { min: 0.45, max: 0.65 },
+  dark: { min: 0.65, max: 0.85 },
+};
 
 export default function OKLCHColorPicker({
   label,
   color,
   onChange,
+  mode = "light",
 }: OKLCHColorPickerProps) {
   const [hexInput, setHexInput] = useState(color);
 
@@ -66,7 +73,8 @@ export default function OKLCHColorPicker({
   const c = oklch.c || 0;
   const h = oklch.h || 0;
 
-  const isUnsafeLightness = l >= 0.4 && l <= 0.7;
+  const range = RECOMMENDED_RANGES[mode];
+  const isUnsafeLightness = l < range.min || l > range.max;
   const hex = formatHex(oklch) || "#000000";
 
   return (
@@ -98,11 +106,11 @@ export default function OKLCHColorPicker({
       {isUnsafeLightness && (
         <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-900 dark:text-amber-200">
-            <p className="font-semibold mb-1">Lightness in unsafe range</p>
-            <p className="text-amber-700 dark:text-amber-300">
-              For optimal contrast, use L &lt; 0.4 (for white text) or L &gt;
-              0.7 (for black text).
+          <div className="text-xs text-amber-700 dark:text-amber-400">
+            <p className="font-semibold">Check Lightness</p>
+            <p>
+              For {mode} mode, recommended lightness is between{" "}
+              {Math.round(range.min * 100)}% and {Math.round(range.max * 100)}%.
             </p>
           </div>
         </div>
@@ -119,21 +127,37 @@ export default function OKLCHColorPicker({
         <div className="relative">
           {/* Recommended Range Indicators */}
           <div className="absolute -top-6 left-0 right-0 h-8 pointer-events-none">
-            {/* Range 1: 0 - 0.4 */}
-            <div className="absolute bottom-0 left-0 w-[40%] h-1.5 bg-green-500/20 dark:bg-green-400/20 rounded-l-sm" />
+            {/* Recommended Range */}
+            <div
+              className="absolute bottom-0 h-1.5 bg-green-500/20 dark:bg-green-400/20 rounded-sm"
+              style={{
+                left: `${range.min * 100}%`,
+                width: `${(range.max - range.min) * 100}%`,
+              }}
+            />
 
-            {/* Range 2: 0.7 - 1.0 */}
-            <div className="absolute bottom-0 left-[70%] w-[30%] h-1.5 bg-green-500/20 dark:bg-green-400/20 rounded-r-sm" />
-
-            {/* Markers */}
-            <div className="absolute bottom-0 left-[40%] w-px h-3 bg-green-500 dark:bg-green-400" />
-            <span className="absolute -top-1 left-[40%] -translate-x-1/2 text-[9px] text-green-600 dark:text-green-400 font-mono font-bold">
-              0.4
+            {/* Min Marker */}
+            <div
+              className="absolute bottom-0 w-px h-3 bg-green-500 dark:bg-green-400"
+              style={{ left: `${range.min * 100}%` }}
+            />
+            <span
+              className="absolute -top-1 -translate-x-1/2 text-[9px] text-green-600 dark:text-green-400 font-mono font-bold"
+              style={{ left: `${range.min * 100}%` }}
+            >
+              {range.min}
             </span>
 
-            <div className="absolute bottom-0 left-[70%] w-px h-3 bg-green-500 dark:bg-green-400" />
-            <span className="absolute -top-1 left-[70%] -translate-x-1/2 text-[9px] text-green-600 dark:text-green-400 font-mono font-bold">
-              0.7
+            {/* Max Marker */}
+            <div
+              className="absolute bottom-0 w-px h-3 bg-green-500 dark:bg-green-400"
+              style={{ left: `${range.max * 100}%` }}
+            />
+            <span
+              className="absolute -top-1 -translate-x-1/2 text-[9px] text-green-600 dark:text-green-400 font-mono font-bold"
+              style={{ left: `${range.max * 100}%` }}
+            >
+              {range.max}
             </span>
           </div>
           <Slider

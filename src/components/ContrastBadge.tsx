@@ -21,24 +21,27 @@ export default function ContrastBadge({
   const { ratio, aa, aaa, apca, apcaLevel } = result;
 
   // Pass if WCAG AA (4.5) OR APCA Lc >= 60 (Large Text/Button)
-  // Since we are using pure black/white, if this fails, the background is just difficult.
   const isPass = aa || Math.abs(apca) >= 60;
 
-  let statusColor = "text-red-400";
+  // Unified style: Darker background and stronger border for better visibility on light backgrounds
+  const themeClass = "bg-slate-800/90 text-white border-white/20 shadow-sm";
+
+  let statusColor = "text-red-300";
   let Icon = X;
 
   if (aaa || Math.abs(apca) >= 75) {
-    statusColor = "text-green-400";
+    statusColor = "text-green-300";
     Icon = Check;
   } else if (isPass) {
-    statusColor = "text-yellow-400"; // Warning/OK
+    statusColor = "text-yellow-300";
     Icon = Check;
   }
 
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 text-[10px] font-mono bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-white shadow-sm border border-white/10 w-[100px]",
+        "flex items-center gap-1.5 text-[10px] font-mono backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border w-[100px]",
+        themeClass,
         className
       )}
       title={`WCAG Ratio: ${formatRatio(ratio)} (AA: ${

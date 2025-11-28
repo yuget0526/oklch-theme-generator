@@ -236,9 +236,18 @@ export default function ColorGenerator() {
 
   // Current background color as HEX
   const currentBgHex = (() => {
+    let l = baseMode === "light" ? 0.98 : 0.15;
+
+    // Adjust for inverted direction to ensure background matches the layer stack start
+    if (layerDirection === "inverted") {
+      // Light Mode Inverted: Start darker (0.92) so layers can get lighter
+      // Dark Mode Inverted: Start lighter (0.35) so layers can get darker
+      l = baseMode === "light" ? 0.92 : 0.35;
+    }
+
     const bgColor = oklch({
       mode: "oklch",
-      l: baseMode === "light" ? 0.98 : 0.15,
+      l,
       c: effectiveBgChroma,
       h: effectiveBgHue,
     });
@@ -737,16 +746,19 @@ function SidebarContent({
                 label="Primary"
                 color={primaryColor}
                 onChange={setPrimaryColor}
+                mode={baseMode}
               />
               <OKLCHColorPicker
                 label="Secondary"
                 color={secondaryColor}
                 onChange={setSecondaryColor}
+                mode={baseMode}
               />
               <OKLCHColorPicker
                 label="Tertiary"
                 color={tertiaryColor}
                 onChange={setTertiaryColor}
+                mode={baseMode}
               />
             </div>
           </section>

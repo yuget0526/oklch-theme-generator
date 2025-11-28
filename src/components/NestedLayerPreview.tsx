@@ -43,6 +43,8 @@ const VariantColumn = ({
   mainColor,
   resolveColor,
   mode,
+  bgColor,
+  fgColor,
 }: {
   title: string;
   variants: ColorVariant[];
@@ -51,8 +53,18 @@ const VariantColumn = ({
     v: ColorVariant
   ) => ColorVariant & { hex: string; onHex: string };
   mode: ThemeMode;
+  bgColor?: string;
+  fgColor?: string;
 }) => (
-  <div className="flex-1 p-6 rounded-2xl bg-black/5 dark:bg-white/5">
+  <div
+    className={`flex-1 p-6 rounded-2xl ${
+      !bgColor ? "bg-black/5 dark:bg-white/5" : ""
+    }`}
+    style={{
+      backgroundColor: bgColor,
+      color: fgColor,
+    }}
+  >
     <h3
       className="text-center font-bold text-lg mb-1"
       style={{ color: mainColor }}
@@ -143,6 +155,8 @@ export function NestedLayerPreview({
   const l3 = resolveLayer(
     layers.find((l) => l.name === "surface-3") || layers[2]
   );
+  const l4 = layers.find((l) => l.name === "surface-4") || layers[3];
+  const resolvedL4 = l4 ? resolveLayer(l4) : undefined;
 
   // Background layer object for consistency
   const bgLayer = {
@@ -206,7 +220,6 @@ export function NestedLayerPreview({
                       <ContrastBadge
                         bgColor={pMain.hex}
                         fgColor={pMain.onHex}
-                        className="shadow-none border-none bg-black/20 backdrop-blur-sm"
                       />
                     </div>
                   </div>
@@ -224,11 +237,7 @@ export function NestedLayerPreview({
                       Learn More
                     </button>
                     <div className="absolute top-1/2 -translate-y-1/2 right-3">
-                      <ContrastBadge
-                        bgColor={l3.hex}
-                        fgColor={pMain.hex}
-                        className="shadow-none border-none bg-black/5"
-                      />
+                      <ContrastBadge bgColor={l3.hex} fgColor={pMain.hex} />
                     </div>
                   </div>
                 </div>
@@ -239,29 +248,29 @@ export function NestedLayerPreview({
                 <VariantColumn
                   title="Primary"
                   variants={primary}
-                  mainColor={
-                    resolveColor(primary.find((v) => v.name === mode)).hex
-                  }
+                  mainColor={pMain.hex}
                   resolveColor={resolveColor}
                   mode={mode}
+                  bgColor={resolvedL4?.hex}
+                  fgColor={resolvedL4?.onHex}
                 />
                 <VariantColumn
                   title="Secondary"
                   variants={secondary}
-                  mainColor={
-                    resolveColor(secondary.find((v) => v.name === mode)).hex
-                  }
+                  mainColor={resolveColor(secondary[0]).hex}
                   resolveColor={resolveColor}
                   mode={mode}
+                  bgColor={resolvedL4?.hex}
+                  fgColor={resolvedL4?.onHex}
                 />
                 <VariantColumn
                   title="Tertiary"
                   variants={tertiary}
-                  mainColor={
-                    resolveColor(tertiary.find((v) => v.name === mode)).hex
-                  }
+                  mainColor={resolveColor(tertiary[0]).hex}
                   resolveColor={resolveColor}
                   mode={mode}
+                  bgColor={resolvedL4?.hex}
+                  fgColor={resolvedL4?.onHex}
                 />
               </div>
             </div>
