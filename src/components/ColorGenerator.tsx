@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { oklch, formatHex } from "culori";
 import { LightnessChart } from "@/components/LightnessChart";
 import {
   ThemeMode,
@@ -115,6 +116,34 @@ export default function ColorGenerator() {
     }
   };
 
+  const handleBgHexChange = (hex: string) => {
+    // Convert HEX to OKLCH
+    const color = oklch(hex);
+    if (!color) return;
+
+    const hue = color.h || 0;
+    let chroma = color.c || 0;
+
+    // Validate and correct chroma if necessary
+    const MAX_CHROMA = 0.01;
+    if (chroma > MAX_CHROMA) {
+      toast.info("可読性確保のため彩度を0.01に調整しました", {
+        description: `入力された色の色相(${Math.round(
+          hue
+        )}°)を維持して彩度を調整しました`,
+      });
+      chroma = MAX_CHROMA;
+    }
+
+    // Update both hue and chroma
+    setCustomBgHue(hue);
+    setCustomBgChroma(chroma);
+
+    if (bgMode === "sync") {
+      setBgMode("custom");
+    }
+  };
+
   // Derived State - Brand Colors (3 variants)
   const primaryVariants = useMemo(
     () => generateBrandColors(primaryColor, "primary"),
@@ -145,6 +174,17 @@ export default function ColorGenerator() {
     }
     return customBgChroma ?? 0.008;
   }, [bgMode, customBgChroma]);
+
+  // Current background color as HEX
+  const currentBgHex = useMemo(() => {
+    const bgColor = oklch({
+      mode: "oklch",
+      l: baseMode === "light" ? 0.98 : 0.15,
+      c: effectiveBgChroma,
+      h: effectiveBgHue,
+    });
+    return formatHex(bgColor) || "#FFFFFF";
+  }, [effectiveBgHue, effectiveBgChroma, baseMode]);
 
   // Derived State - Layer Scales (Backgrounds)
   const layerScales = useMemo(
@@ -242,10 +282,12 @@ export default function ColorGenerator() {
     bgMode,
     effectiveBgHue,
     effectiveBgChroma,
+    currentBgHex,
     primaryHue: primaryVariants[0].oklch.h || 0,
     handleBgModeChange,
     handleBgHueChange,
     handleBgChromaChange,
+    handleBgHexChange,
   };
 
   return (
@@ -449,10 +491,12 @@ interface SidebarContentProps {
   bgMode: "sync" | "custom";
   effectiveBgHue: number;
   effectiveBgChroma: number;
+  currentBgHex: string;
   primaryHue: number;
   handleBgModeChange: (isCustom: boolean) => void;
   handleBgHueChange: (hue: number) => void;
   handleBgChromaChange: (chroma: number) => void;
+  handleBgHexChange: (hex: string) => void;
 }
 
 function SidebarContent({
@@ -477,10 +521,12 @@ function SidebarContent({
   bgMode,
   effectiveBgHue,
   effectiveBgChroma,
+  currentBgHex,
   primaryHue,
   handleBgModeChange,
   handleBgHueChange,
   handleBgChromaChange,
+  handleBgHexChange,
 }: SidebarContentProps) {
   // Determine chart range based on mode
   const chartMin = baseMode === "light" ? 0.8 : 0.0;
@@ -539,10 +585,12 @@ function SidebarContent({
               mode={bgMode}
               hue={effectiveBgHue}
               chroma={effectiveBgChroma}
+              currentHex={currentBgHex}
               primaryHue={primaryHue}
               onModeChange={handleBgModeChange}
               onHueChange={handleBgHueChange}
               onChromaChange={handleBgChromaChange}
+              onHexChange={handleBgHexChange}
             />
 
             <div className="flex items-center justify-between">

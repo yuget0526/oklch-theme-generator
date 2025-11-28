@@ -1,19 +1,22 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface BackgroundColorControlsProps {
   mode: "sync" | "custom";
   hue: number;
   chroma: number;
   primaryHue: number;
+  currentHex: string;
   onModeChange: (isCustom: boolean) => void;
   onHueChange: (hue: number) => void;
   onChromaChange: (chroma: number) => void;
+  onHexChange: (hex: string) => void;
 }
 
 export default function BackgroundColorControls({
@@ -21,12 +24,34 @@ export default function BackgroundColorControls({
   hue,
   chroma,
   primaryHue,
+  currentHex,
   onModeChange,
   onHueChange,
   onChromaChange,
+  onHexChange,
 }: BackgroundColorControlsProps) {
   const MAX_CHROMA = 0.01;
   const WARNING_THRESHOLD = 0.01;
+
+  const [hexInput, setHexInput] = useState(currentHex);
+
+  useEffect(() => {
+    setHexInput(currentHex);
+  }, [currentHex]);
+
+  const handleHexBlur = () => {
+    // Validate HEX format
+    const hexPattern = /^#?[0-9A-F]{6}$/i;
+    if (hexPattern.test(hexInput)) {
+      const normalizedHex = hexInput.startsWith("#")
+        ? hexInput
+        : `#${hexInput}`;
+      onHexChange(normalizedHex);
+    } else {
+      // Revert to current valid value
+      setHexInput(currentHex);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -58,6 +83,22 @@ export default function BackgroundColorControls({
 
       {mode === "custom" && (
         <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">HEX Code</Label>
+              <span className="text-xs font-mono text-muted-foreground">
+                {currentHex}
+              </span>
+            </div>
+            <Input
+              value={hexInput}
+              onChange={(e) => setHexInput(e.target.value)}
+              onBlur={handleHexBlur}
+              placeholder="#RRGGBB"
+              className="font-mono text-sm"
+            />
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Hue (H)</Label>
