@@ -258,12 +258,12 @@ export function generateDefaultLightness(
   direction: "normal" | "inverted" = "normal"
 ): number[] {
   const isDark = mode === "dark";
-  // Light mode: Start bright (0.99), end slightly darker (0.92)
+  // Light mode: Start bright (0.99), end slightly darker (0.90)
   // Dark mode: Start dark (0.15), end lighter (0.35)
   // We want more separation in the first few layers for dark mode.
 
   const startL = isDark ? 0.15 : 0.99;
-  const endL = isDark ? 0.35 : 0.92;
+  const endL = isDark ? 0.35 : 0.9;
 
   const lightnesses: number[] = [];
 
@@ -271,18 +271,11 @@ export function generateDefaultLightness(
     const t = i / (count - 1);
 
     // Use a slight curve for better distribution
-    // Ease out for dark mode to gain lightness faster at the beginning?
-    // Or ease in?
-    // Linear: 0.15, 0.20, 0.25, 0.30, 0.35
-    // We want distinct layers.
-    // Let's stick to a slightly adjusted curve or just linear but optimized range.
-    // User requested "accessible".
-    // Let's use a simple power curve.
-
-    // For now, let's keep it linear but with the updated range,
-    // as the graph will allow fine-tuning.
-    // But we can make it slightly non-linear.
-    const curvedT = isDark ? Math.pow(t, 0.8) : t; // Slight curve for dark mode
+    // Power curve < 1 makes the initial steps larger (faster change)
+    // Power curve > 1 makes the initial steps smaller (slower change)
+    // For natural lighting/depth, a slight ease-out (faster initial change) often looks better.
+    const exponent = isDark ? 0.8 : 0.85;
+    const curvedT = Math.pow(t, exponent);
 
     let l = startL + (endL - startL) * curvedT;
 
