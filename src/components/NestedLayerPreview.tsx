@@ -108,7 +108,7 @@ const RecursiveLayer = ({
   depth = 0,
   children,
 }: {
-  layers: any[];
+  layers: { name: string; hex: string; onHex: string }[];
   depth?: number;
   children: React.ReactNode;
 }) => {
@@ -121,14 +121,15 @@ const RecursiveLayer = ({
 
   // Dynamic styles based on depth
   const getLayerStyle = (d: number) => {
-    if (d === 0)
-      return "w-full max-w-5xl rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex flex-col";
-    if (d === 1)
-      return "w-full rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col";
-    if (d === 2)
-      return "w-full rounded-t-2xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col";
+    // Unify padding to p-4 sm:p-6 for all layers to ensure consistent spacing
+    const baseStyle =
+      "w-full shadow-sm transition-colors duration-300 flex flex-col p-4 sm:p-6 pb-0";
+
+    if (d === 0) return `${baseStyle} max-w-7xl rounded-t-3xl`;
+    if (d === 1) return `${baseStyle} rounded-t-3xl flex-1`;
+    if (d === 2) return `${baseStyle} rounded-t-2xl flex-1`;
     // Default for deeper layers
-    return "w-full rounded-t-xl p-6 sm:p-12 shadow-sm transition-colors duration-300 flex-1";
+    return "w-full rounded-t-xl p-4 sm:p-6 shadow-sm transition-colors duration-300 flex-1";
   };
 
   return (
@@ -194,19 +195,34 @@ export function NestedLayerPreview({
   // Resolve all layers
   const resolvedLayers = layers.map(resolveLayer);
 
+  // Create background layer
+  // We use the first layer's onHex as a fallback for text color if needed,
+  // though typically the background layer should have its own contrast color calculated.
+  // For now, using resolvedLayers[0].onHex is a reasonable approximation if we don't have a specific one.
+  const bgLayer = {
+    name: "BACKGROUND",
+    hex: backgroundColor,
+    onHex: resolvedLayers[0]?.onHex || "#000000",
+  };
+
   // Split layers:
   // - containerLayers: All layers except the last one (used for the nested container structure)
   // - cardLayer: The last layer (used for the content cards/variants)
   // This ensures the cards have a distinct background from the container they sit in.
-  const containerLayers =
-    resolvedLayers.length > 1 ? resolvedLayers.slice(0, -1) : resolvedLayers;
+  // We also prepend the main background layer to the container layers.
+  // IMPORTANT: We skip resolvedLayers[0] (the generated "background" layer) because it is redundant
+  // with bgLayer (the canvas background). We want the first nested card to be "surface-1".
+  const layersForContainer =
+    resolvedLayers.length > 1 ? resolvedLayers.slice(1, -1) : [];
+  const containerLayers = [bgLayer, ...layersForContainer];
+
   const cardLayer =
     resolvedLayers.length > 1
       ? resolvedLayers[resolvedLayers.length - 1]
       : resolvedLayers[0];
 
   return (
-    <div className="w-full min-h-full p-8 transition-colors duration-300 flex flex-col items-center">
+    <div className="w-full min-h-full p-4 transition-colors duration-300 flex flex-col items-center">
       <RecursiveLayer layers={containerLayers}>
         {/* Main Content */}
         <div className="text-center space-y-6 max-w-2xl mx-auto mb-16">
