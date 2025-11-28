@@ -102,6 +102,52 @@ const VariantColumn = ({
   </div>
 );
 
+// Recursive Layer Component
+const RecursiveLayer = ({
+  layers,
+  depth = 0,
+  children,
+}: {
+  layers: any[];
+  depth?: number;
+  children: React.ReactNode;
+}) => {
+  if (layers.length === 0) {
+    return <>{children}</>;
+  }
+
+  const [currentLayer, ...remainingLayers] = layers;
+  const isLast = remainingLayers.length === 0;
+
+  // Dynamic styles based on depth
+  const getLayerStyle = (d: number) => {
+    if (d === 0)
+      return "w-full max-w-5xl rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex flex-col";
+    if (d === 1)
+      return "w-full rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col";
+    if (d === 2)
+      return "w-full rounded-t-2xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col";
+    // Default for deeper layers
+    return "w-full rounded-t-xl p-6 sm:p-12 shadow-sm transition-colors duration-300 flex-1";
+  };
+
+  return (
+    <div
+      className={getLayerStyle(depth)}
+      style={{ backgroundColor: currentLayer.hex, color: currentLayer.onHex }}
+    >
+      <LayerHeader label={currentLayer.name} layer={currentLayer} />
+      {isLast ? (
+        children
+      ) : (
+        <RecursiveLayer layers={remainingLayers} depth={depth + 1}>
+          {children}
+        </RecursiveLayer>
+      )}
+    </div>
+  );
+};
+
 export function NestedLayerPreview({
   layers,
   primary,
@@ -145,142 +191,104 @@ export function NestedLayerPreview({
   // Extract variants for current mode (for buttons)
   const pMain = resolveColor(primary.find((v) => v.name === mode));
 
-  // Layers
-  const l1 = resolveLayer(
-    layers.find((l) => l.name === "surface-1") || layers[0]
-  );
-  const l2 = resolveLayer(
-    layers.find((l) => l.name === "surface-2") || layers[1]
-  );
-  const l3 = resolveLayer(
-    layers.find((l) => l.name === "surface-3") || layers[2]
-  );
-  const l4 = layers.find((l) => l.name === "surface-4") || layers[3];
-  const resolvedL4 = l4 ? resolveLayer(l4) : undefined;
+  // Resolve all layers
+  const resolvedLayers = layers.map(resolveLayer);
 
-  // Background layer object for consistency
-  const bgLayer = {
-    hex: backgroundColor,
-    onHex: l1.onHex, // Use l1's onHex as a fallback for background text color
-  };
+  // Split layers:
+  // - containerLayers: All layers except the last one (used for the nested container structure)
+  // - cardLayer: The last layer (used for the content cards/variants)
+  // This ensures the cards have a distinct background from the container they sit in.
+  const containerLayers =
+    resolvedLayers.length > 1 ? resolvedLayers.slice(0, -1) : resolvedLayers;
+  const cardLayer =
+    resolvedLayers.length > 1
+      ? resolvedLayers[resolvedLayers.length - 1]
+      : resolvedLayers[0];
 
   return (
     <div className="w-full min-h-full p-8 transition-colors duration-300 flex flex-col items-center">
-      {/* BACKGROUND Layer */}
-      <div
-        className="w-full max-w-5xl rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex flex-col"
-        style={{ backgroundColor: bgLayer.hex, color: bgLayer.onHex }}
-      >
-        <LayerHeader label="BACKGROUND" layer={bgLayer} />
-
-        {/* Surface 1 */}
-        <div
-          className="w-full rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col"
-          style={{ backgroundColor: l1.hex, color: l1.onHex }}
-        >
-          <LayerHeader label="Surface-1" layer={l1} />
-
-          {/* Surface 2 */}
-          <div
-            className="w-full rounded-t-2xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col"
-            style={{ backgroundColor: l2.hex, color: l2.onHex }}
+      <RecursiveLayer layers={containerLayers}>
+        {/* Main Content */}
+        <div className="text-center space-y-6 max-w-2xl mx-auto mb-16">
+          <h1
+            className="text-5xl font-bold tracking-tight"
+            style={{ color: pMain.hex }}
           >
-            <LayerHeader label="Surface-2" layer={l2} />
+            Nested Layers
+          </h1>
+          <p className="text-lg opacity-70 leading-relaxed">
+            This preview demonstrates how the generated background layers create
+            depth and hierarchy in your interface.
+          </p>
 
-            {/* Surface 3 */}
-            <div
-              className="w-full rounded-t-xl p-8 sm:p-12 shadow-sm transition-colors duration-300 flex-1"
-              style={{ backgroundColor: l3.hex, color: l3.onHex }}
-            >
-              <LayerHeader label="Surface-3" layer={l3} />
-
-              {/* Main Content */}
-              <div className="text-center space-y-6 max-w-2xl mx-auto mb-16">
-                <h1
-                  className="text-5xl font-bold tracking-tight"
-                  style={{ color: pMain.hex }}
-                >
-                  Nested Layers
-                </h1>
-                <p className="text-lg opacity-70 leading-relaxed">
-                  This preview demonstrates how the generated background layers
-                  create depth and hierarchy in your interface.
-                </p>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                  {/* Filled Button */}
-                  <div className="relative group">
-                    <button
-                      className="pl-6 pr-32 py-3 rounded-lg font-semibold shadow-sm transition-transform active:scale-95 flex items-center h-12"
-                      style={{ backgroundColor: pMain.hex, color: pMain.onHex }}
-                    >
-                      Get Started
-                    </button>
-                    <div className="absolute top-1/2 -translate-y-1/2 right-3">
-                      <ContrastBadge
-                        bgColor={pMain.hex}
-                        fgColor={pMain.onHex}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Outlined Button */}
-                  <div className="relative group">
-                    <button
-                      className="pl-6 pr-32 py-3 rounded-lg font-semibold border-2 transition-transform active:scale-95 flex items-center h-12"
-                      style={{
-                        borderColor: pMain.hex,
-                        color: pMain.hex,
-                        backgroundColor: "transparent",
-                      }}
-                    >
-                      Learn More
-                    </button>
-                    <div className="absolute top-1/2 -translate-y-1/2 right-3">
-                      <ContrastBadge bgColor={l3.hex} fgColor={pMain.hex} />
-                    </div>
-                  </div>
-                </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            {/* Filled Button */}
+            <div className="relative group">
+              <button
+                className="pl-6 pr-32 py-3 rounded-lg font-semibold shadow-sm transition-transform active:scale-95 flex items-center h-12"
+                style={{ backgroundColor: pMain.hex, color: pMain.onHex }}
+              >
+                Get Started
+              </button>
+              <div className="absolute top-1/2 -translate-y-1/2 right-3">
+                <ContrastBadge bgColor={pMain.hex} fgColor={pMain.onHex} />
               </div>
+            </div>
 
-              {/* Color Variants Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <VariantColumn
-                  title="Primary"
-                  variants={primary}
-                  mainColor={pMain.hex}
-                  resolveColor={resolveColor}
-                  mode={mode}
-                  bgColor={resolvedL4?.hex}
-                  fgColor={resolvedL4?.onHex}
-                />
-                {secondary.length > 0 && (
-                  <VariantColumn
-                    title="Secondary"
-                    variants={secondary}
-                    mainColor={resolveColor(secondary[0]).hex}
-                    resolveColor={resolveColor}
-                    mode={mode}
-                    bgColor={resolvedL4?.hex}
-                    fgColor={resolvedL4?.onHex}
-                  />
-                )}
-                {tertiary.length > 0 && (
-                  <VariantColumn
-                    title="Tertiary"
-                    variants={tertiary}
-                    mainColor={resolveColor(tertiary[0]).hex}
-                    resolveColor={resolveColor}
-                    mode={mode}
-                    bgColor={resolvedL4?.hex}
-                    fgColor={resolvedL4?.onHex}
-                  />
-                )}
+            {/* Outlined Button */}
+            <div className="relative group">
+              <button
+                className="pl-6 pr-32 py-3 rounded-lg font-semibold border-2 transition-transform active:scale-95 flex items-center h-12"
+                style={{
+                  borderColor: pMain.hex,
+                  color: pMain.hex,
+                  backgroundColor: "transparent",
+                }}
+              >
+                Learn More
+              </button>
+              <div className="absolute top-1/2 -translate-y-1/2 right-3">
+                <ContrastBadge bgColor={cardLayer.hex} fgColor={pMain.hex} />
               </div>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* Color Variants Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <VariantColumn
+            title="Primary"
+            variants={primary}
+            mainColor={pMain.hex}
+            resolveColor={resolveColor}
+            mode={mode}
+            bgColor={cardLayer.hex}
+            fgColor={cardLayer.onHex}
+          />
+          {secondary.length > 0 && (
+            <VariantColumn
+              title="Secondary"
+              variants={secondary}
+              mainColor={resolveColor(secondary[0]).hex}
+              resolveColor={resolveColor}
+              mode={mode}
+              bgColor={cardLayer.hex}
+              fgColor={cardLayer.onHex}
+            />
+          )}
+          {tertiary.length > 0 && (
+            <VariantColumn
+              title="Tertiary"
+              variants={tertiary}
+              mainColor={resolveColor(tertiary[0]).hex}
+              resolveColor={resolveColor}
+              mode={mode}
+              bgColor={cardLayer.hex}
+              fgColor={cardLayer.onHex}
+            />
+          )}
+        </div>
+      </RecursiveLayer>
     </div>
   );
 }
