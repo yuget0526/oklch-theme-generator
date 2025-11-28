@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useRef } from "react";
 import { oklch, formatHex } from "culori";
 import { LightnessChart } from "@/components/LightnessChart";
 import {
@@ -10,13 +10,18 @@ import {
   generateLayerScale,
   generateOppositeLayerScale,
 } from "@/lib/color/color-utils";
+import {
+  serializeState,
+  deserializeState,
+  ColorGeneratorState,
+} from "@/lib/url-state";
 import OKLCHColorPicker from "./OKLCHColorPicker";
 import LayerCountInput from "./LayerCountInput";
 import PalettePreview from "./PalettePreview";
 import ColorGroupCreator from "./ColorGroupCreator";
 import CodeExporter from "./CodeExporter";
 import NestedLayerPreview from "@/components/NestedLayerPreview";
-import ShareButton from "@/components/ShareButton";
+
 import {
   LayoutDashboard,
   Palette,
@@ -27,6 +32,8 @@ import {
   Menu,
 } from "lucide-react";
 import BackgroundColorControls from "@/components/BackgroundColorControls";
+import CopyLinkButton from "@/components/CopyLinkButton";
+import ShareButton from "@/components/ShareButton";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,6 +65,62 @@ export default function ColorGenerator() {
   const [bgMode, setBgMode] = useState<"sync" | "custom">("sync");
   const [customBgHue, setCustomBgHue] = useState<number | null>(null);
   const [customBgChroma, setCustomBgChroma] = useState<number | null>(null);
+
+  // Refs
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // URL State Management
+  // 1. Sync state to URL
+  React.useEffect(() => {
+    const state: ColorGeneratorState = {
+      primaryColor,
+      secondaryColor,
+      tertiaryColor,
+      layerCount,
+      bgMode,
+      customBgHue: customBgHue ?? undefined,
+      customBgChroma: customBgChroma ?? undefined,
+      baseMode,
+      layerDirection,
+    };
+
+    const queryString = serializeState(state);
+    const newUrl = `${window.location.pathname}?s=${queryString}`;
+
+    // Update URL without adding to history
+    window.history.replaceState(null, "", newUrl);
+  }, [
+    primaryColor,
+    secondaryColor,
+    tertiaryColor,
+    layerCount,
+    bgMode,
+    customBgHue,
+    customBgChroma,
+    baseMode,
+    layerDirection,
+  ]);
+
+  // 2. Restore state from URL on mount
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const restoredState = deserializeState(searchParams);
+
+    if (restoredState.primaryColor) setPrimaryColor(restoredState.primaryColor);
+    if (restoredState.secondaryColor)
+      setSecondaryColor(restoredState.secondaryColor);
+    if (restoredState.tertiaryColor)
+      setTertiaryColor(restoredState.tertiaryColor);
+    if (restoredState.layerCount) setLayerCount(restoredState.layerCount);
+    if (restoredState.baseMode) setBaseMode(restoredState.baseMode);
+    if (restoredState.layerDirection)
+      setLayerDirection(restoredState.layerDirection);
+    if (restoredState.bgMode) setBgMode(restoredState.bgMode);
+    if (restoredState.customBgHue !== undefined)
+      setCustomBgHue(restoredState.customBgHue);
+    if (restoredState.customBgChroma !== undefined)
+      setCustomBgChroma(restoredState.customBgChroma);
+  }, []);
 
   // Handlers with reset logic
   const handleLayerCountChange = (count: number) => {
@@ -144,38 +207,29 @@ export default function ColorGenerator() {
   };
 
   // Derived State - Brand Colors (3 variants)
-  const primaryVariants = useMemo(
-    () => generateBrandColors(primaryColor, "primary"),
-    [primaryColor]
-  );
+  const primaryVariants = generateBrandColors(primaryColor, "primary");
 
-  const secondaryVariants = useMemo(
-    () => generateBrandColors(secondaryColor, "secondary"),
-    [secondaryColor]
-  );
+  const secondaryVariants = generateBrandColors(secondaryColor, "secondary");
 
-  const tertiaryVariants = useMemo(
-    () => generateBrandColors(tertiaryColor, "tertiary"),
-    [tertiaryColor]
-  );
+  const tertiaryVariants = generateBrandColors(tertiaryColor, "tertiary");
 
   // Derived State - Background color values
-  const effectiveBgHue = useMemo(() => {
+  const effectiveBgHue = (() => {
     if (bgMode === "sync") {
       return primaryVariants[0].oklch.h || 0;
     }
     return customBgHue ?? (primaryVariants[0].oklch.h || 0);
-  }, [bgMode, customBgHue, primaryVariants]);
+  })();
 
-  const effectiveBgChroma = useMemo(() => {
+  const effectiveBgChroma = (() => {
     if (bgMode === "sync") {
       return 0.008;
     }
     return customBgChroma ?? 0.008;
-  }, [bgMode, customBgChroma]);
+  })();
 
   // Current background color as HEX
-  const currentBgHex = useMemo(() => {
+  const currentBgHex = (() => {
     const bgColor = oklch({
       mode: "oklch",
       l: baseMode === "light" ? 0.98 : 0.15,
@@ -183,35 +237,21 @@ export default function ColorGenerator() {
       h: effectiveBgHue,
     });
     return formatHex(bgColor) || "#FFFFFF";
-  }, [effectiveBgHue, effectiveBgChroma, baseMode]);
+  })();
 
   // Derived State - Layer Scales (Backgrounds)
-  const layerScales = useMemo(
-    () =>
-      generateLayerScale(
-        effectiveBgHue,
-        effectiveBgChroma,
-        layerCount,
-        baseMode,
-        layerDirection,
-        customLightness
-      ),
-    [
-      effectiveBgHue,
-      effectiveBgChroma,
-      layerCount,
-      baseMode,
-      layerDirection,
-      customLightness,
-    ]
+  const layerScales = generateLayerScale(
+    effectiveBgHue,
+    effectiveBgChroma,
+    layerCount,
+    baseMode,
+    layerDirection,
+    customLightness
   );
 
   const oppositeMode = baseMode === "light" ? "dark" : "light";
 
-  const oppositeLayerScales = useMemo(
-    () => generateOppositeLayerScale(layerScales),
-    [layerScales]
-  );
+  const oppositeLayerScales = generateOppositeLayerScale(layerScales);
 
   // Layer scales are mode-aware (Backgrounds need to flip)
   const activeLayers = layerScales;
@@ -233,7 +273,7 @@ export default function ColorGenerator() {
   };
 
   // Helper to get overrides for the current view
-  const currentModeOverrides = useMemo(() => {
+  const currentModeOverrides = (() => {
     const resolved: Record<string, string> = {};
     Object.entries(colorOverrides).forEach(([key, value]) => {
       if (key.startsWith(`${baseMode}:`)) {
@@ -241,9 +281,9 @@ export default function ColorGenerator() {
       }
     });
     return resolved;
-  }, [colorOverrides, baseMode]);
+  })();
 
-  const oppositeModeOverrides = useMemo(() => {
+  const oppositeModeOverrides = (() => {
     const resolved: Record<string, string> = {};
     Object.entries(colorOverrides).forEach(([key, value]) => {
       if (key.startsWith(`${oppositeMode}:`)) {
@@ -251,13 +291,10 @@ export default function ColorGenerator() {
       }
     });
     return resolved;
-  }, [colorOverrides, oppositeMode]);
+  })();
 
   // Calculate current lightness values for the chart
-  const currentLightnessValues = useMemo(
-    () => layerScales.map((l) => l.oklch.l || 0),
-    [layerScales]
-  );
+  const currentLightnessValues = layerScales.map((l) => l.oklch.l || 0);
 
   const sidebarProps = {
     baseMode,
@@ -298,7 +335,7 @@ export default function ColorGenerator() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Tabs defaultValue="preview" className="flex-1 flex flex-col h-full">
           <header className="h-16 border-b bg-card flex items-center justify-between px-6 flex-shrink-0">
-            <div className="flex items-center lg:hidden">
+            <div className="flex items-center gap-2 lg:hidden">
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="-ml-2">
@@ -309,6 +346,10 @@ export default function ColorGenerator() {
                   <SidebarContent {...sidebarProps} />
                 </SheetContent>
               </Sheet>
+            </div>
+
+            <div className="flex items-center gap-2 lg:hidden">
+              <CopyLinkButton />
             </div>
 
             <TabsList>
@@ -326,15 +367,18 @@ export default function ColorGenerator() {
               </TabsTrigger>
             </TabsList>
 
-            <div className="flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2">
+              <CopyLinkButton />
               <ShareButton targetRef={previewRef} />
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() =>
-                  handleModeChange(baseMode === "light" ? "dark" : "light")
+                  setBaseMode(baseMode === "light" ? "dark" : "light")
                 }
-                title="テーマ切り替え"
+                title={`Switch to ${
+                  baseMode === "light" ? "dark" : "light"
+                } mode`}
               >
                 {baseMode === "light" ? <Moon size={20} /> : <Sun size={20} />}
               </Button>
@@ -346,7 +390,7 @@ export default function ColorGenerator() {
               value="preview"
               className="absolute inset-0 m-0 h-full w-full animate-in fade-in duration-300"
             >
-              <div ref={previewRef} className="h-full w-full">
+              <div className="h-full w-full" ref={previewRef}>
                 <NestedLayerPreview
                   layers={activeLayers}
                   primary={primaryVariants}

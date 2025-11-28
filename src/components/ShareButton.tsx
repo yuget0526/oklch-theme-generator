@@ -1,50 +1,48 @@
 "use client";
 
 import React, { useState } from "react";
-import { Share2 } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { captureWithWatermark, copyImageToClipboard } from "@/lib/screenshot";
+import { toPng } from "html-to-image";
 import { toast } from "sonner";
 
 interface ShareButtonProps {
   targetRef: React.RefObject<HTMLElement | null>;
-  disabled?: boolean;
 }
 
-export default function ShareButton({ targetRef, disabled }: ShareButtonProps) {
-  const [isCapturing, setIsCapturing] = useState(false);
+export default function ShareButton({ targetRef }: ShareButtonProps) {
+  const [loading, setLoading] = useState(false);
 
-  const handleShare = async () => {
-    if (!targetRef.current || isCapturing) return;
+  const handleCapture = async () => {
+    if (!targetRef.current) return;
 
-    setIsCapturing(true);
-
+    setLoading(true);
     try {
-      // Capture screenshot with watermark
-      const blob = await captureWithWatermark(targetRef.current);
-
-      // Copy to clipboard
-      await copyImageToClipboard(blob);
-
-      toast.success("画像をクリップボードにコピーしました！", {
-        description: "SNSやSlackに貼り付けて共有できます",
+      const dataUrl = await toPng(targetRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "white",
       });
-    } catch (error) {
-      console.error("Screenshot failed:", error);
 
-      // Check if we're in fallback mode (download instead of copy)
-      if (error instanceof Error && error.message.includes("clipboard")) {
-        toast.info("画像をダウンロードしました", {
-          description:
-            "クリップボードがサポートされていないため、ファイルとして保存されました",
-        });
-      } else {
-        toast.error("画像のキャプチャに失敗しました", {
-          description: "もう一度お試しください",
-        });
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        toast.success("Image copied to clipboard!");
+      } catch (_err) {
+        // Fallback to download
+        const link = document.createElement("a");
+        link.download = `oklch-palette-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+        toast.success("Image downloaded!");
       }
+    } catch (err) {
+      console.error("Failed to capture image", err);
+      toast.error("Failed to capture image");
     } finally {
-      setIsCapturing(false);
+      setLoading(false);
     }
   };
 
@@ -52,11 +50,15 @@ export default function ShareButton({ targetRef, disabled }: ShareButtonProps) {
     <Button
       variant="ghost"
       size="icon"
-      onClick={handleShare}
-      disabled={disabled || isCapturing}
-      title="スクリーンショットを共有"
+      onClick={handleCapture}
+      disabled={loading}
+      title="Capture preview as image"
     >
-      <Share2 size={20} className={isCapturing ? "animate-pulse" : ""} />
+      {loading ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : (
+        <Camera size={20} />
+      )}
     </Button>
   );
 }
