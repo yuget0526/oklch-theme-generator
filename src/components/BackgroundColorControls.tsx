@@ -51,17 +51,16 @@ export default function BackgroundColorControls({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header with Title and Preview */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <Label className="text-base font-semibold">Background Color</Label>
+          <Label className="text-sm font-medium">Background Color</Label>
           <div className="flex items-center gap-2">
             <Switch
               id="bg-mode"
               checked={mode === "custom"}
               onCheckedChange={onModeChange}
-              className="scale-75 origin-left"
             />
             <Label
               htmlFor="bg-mode"
@@ -72,7 +71,7 @@ export default function BackgroundColorControls({
           </div>
         </div>
         <div
-          className="w-12 h-12 rounded-lg shadow-sm border border-border transition-colors duration-200"
+          className="w-8 h-8 rounded shadow-sm ring-1 ring-border transition-colors duration-200"
           style={{ backgroundColor: currentHex }}
           aria-label="Background color preview"
         />
@@ -86,26 +85,26 @@ export default function BackgroundColorControls({
       )}
 
       {mode === "custom" && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
           {/* HEX Input */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-              HEX Color
-            </Label>
+            <Label className="text-xs text-muted-foreground">HEX Color</Label>
             <Input
               value={hexInput}
               onChange={(e) => setHexInput(e.target.value)}
               onBlur={handleHexBlur}
               placeholder="#RRGGBB"
-              className="font-mono text-base h-10 bg-background"
+              className="font-mono text-sm"
             />
           </div>
 
           {/* Chroma Slider (C) */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Chroma (C)</Label>
-              <span className="text-sm font-mono text-muted-foreground">
+              <Label className="text-xs text-muted-foreground">
+                Chroma (C)
+              </Label>
+              <span className="text-xs font-mono text-muted-foreground">
                 {chroma.toFixed(3)}
               </span>
             </div>
@@ -115,25 +114,32 @@ export default function BackgroundColorControls({
               step={0.001}
               value={[chroma]}
               onValueChange={(vals) => onChromaChange(vals[0])}
-              className="py-1"
+              className="relative"
             />
             {chroma > WARNING_THRESHOLD && (
-              <div className="flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800 text-xs">
-                <span className="text-yellow-600 dark:text-yellow-400">⚠️</span>
-                <p className="text-yellow-700 dark:text-yellow-300">
-                  {chroma > MAX_CHROMA
-                    ? `Will be adjusted to ${MAX_CHROMA}`
-                    : "Exceeds recommended value (≤0.01)"}
-                </p>
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md mt-2">
+                <span className="text-amber-600 dark:text-amber-500 text-xs mt-0.5">
+                  ⚠️
+                </span>
+                <div className="text-xs text-amber-900 dark:text-amber-200">
+                  <p className="font-semibold mb-1">
+                    Chroma adjusted for readability
+                  </p>
+                  <p className="text-amber-700 dark:text-amber-300">
+                    {chroma > MAX_CHROMA
+                      ? `Value will be capped at ${MAX_CHROMA} to ensure text contrast.`
+                      : "Value exceeds recommended limit (0.01)."}
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
           {/* Hue Slider (H) */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Hue (H)</Label>
-              <span className="text-sm font-mono text-muted-foreground">
+              <Label className="text-xs text-muted-foreground">Hue (H)</Label>
+              <span className="text-xs font-mono text-muted-foreground">
                 {Math.round(hue)}°
               </span>
             </div>
@@ -143,15 +149,7 @@ export default function BackgroundColorControls({
               step={1}
               value={[hue]}
               onValueChange={(vals) => onHueChange(vals[0])}
-              className="py-1"
-            />
-            <div
-              className="h-2 w-full rounded-full opacity-20 mt-1"
-              style={{
-                background: `linear-gradient(to right, 
-                  oklch(0.6 0.2 0), oklch(0.6 0.2 60), oklch(0.6 0.2 120), 
-                  oklch(0.6 0.2 180), oklch(0.6 0.2 240), oklch(0.6 0.2 300), oklch(0.6 0.2 360))`,
-              }}
+              className="relative"
             />
           </div>
         </div>
