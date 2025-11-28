@@ -1,4 +1,5 @@
 import { formatHex, converter, Oklch, wcagContrast } from "culori";
+import { getAPCAContrast } from "./accessibility";
 
 export { wcagContrast };
 
@@ -40,75 +41,209 @@ export interface ChromaGroup {
 const toOklch = converter("oklch");
 
 function generateOnColor(bgOklch: Oklch): { hex: string; oklch: Oklch } {
-  // Threshold for switching to dark text.
-  // Higher threshold means we keep using White text for lighter colors.
-  const isLightBg = (bgOklch.l || 0) > 0.75;
+  const bgHex = formatHex(bgOklch);
 
-  // Harmonized off-white/off-black
-  const onL = isLightBg ? 0.05 : 0.98;
-  const onC = 0.01; // Very subtle chroma to harmonize with hue
-  const onOklch: Oklch = { l: onL, c: onC, h: bgOklch.h, mode: "oklch" };
+  // Candidate 1: Pure White (Light) - Maximize contrast
+  const lightOn: Oklch = { l: 1.0, c: 0.0, h: bgOklch.h, mode: "oklch" };
+  const lightHex = formatHex(lightOn);
 
-  return { hex: formatHex(onOklch), oklch: onOklch };
+  // Candidate 2: Pure Black (Dark) - Maximize contrast
+  const darkOn: Oklch = { l: 0.0, c: 0.0, h: bgOklch.h, mode: "oklch" };
+  const darkHex = formatHex(darkOn);
+
+  // Calculate APCA contrast for both
+  const lightScore = Math.abs(getAPCAContrast(bgHex, lightHex));
+  const darkScore = Math.abs(getAPCAContrast(bgHex, darkHex));
+
+  // Choose the one with higher contrast
+  // If scores are very close, prefer dark text on light bg?
+  // APCA handles polarity, so absolute value comparison is usually correct.
+  // However, if both fail, we might want to adjust the text color further (not implemented yet).
+
+  if (lightScore > darkScore) {
+    return { hex: lightHex, oklch: lightOn };
+  } else {
+    return { hex: darkHex, oklch: darkOn };
+  }
 }
 
 /**
- * Generates brand color variants (Default, Light, Dark).
+ * Adjusts the lightness of a color to ensure it meets a minimum APCA contrast
+ * with either pure white or pure black.
+ */
+function ensureContrast(oklch: Oklch, targetLc: number = 60): Oklch {
+  const bgHex = formatHex(oklch);
+  const whiteHex = "#ffffff";
+  const blackHex = "#000000";
+
+  const whiteScore = Math.abs(getAPCAContrast(bgHex, whiteHex));
+  const blackScore = Math.abs(getAPCAContrast(bgHex, blackHex));
+  const maxScore = Math.max(whiteScore, blackScore);
+
+  // If already passing, return original
+  if (maxScore >= targetLc) {
+    return oklch;
+  }
+
+  // Determine direction: if closer to white (lighter), go lighter. If closer to black (darker), go darker.
+  // Or simply: if current L > 0.5, try going lighter. Else darker.
+  // Actually, checking which score is higher tells us which text color is "closer" to working.
+  // If whiteScore > blackScore, it means the background is darkish (but not dark enough). So we should make it darker.
+  // If blackScore > whiteScore, the background is lightish. We should make it lighter.
+
+  const direction = blackScore > whiteScore ? 1 : -1;
+  let currentL = oklch.l || 0;
+
+  // Limit iterations to prevent infinite loops or extreme shifts
+  for (let i = 0; i < 50; i++) {
+    currentL += direction * 0.01;
+    // Clamp
+    currentL = Math.max(0, Math.min(1, currentL));
+
+    const newColor: Oklch = { ...oklch, l: currentL };
+    const newHex = formatHex(newColor);
+
+    const newWhiteScore = Math.abs(getAPCAContrast(newHex, whiteHex));
+    const newBlackScore = Math.abs(getAPCAContrast(newHex, blackHex));
+
+    if (Math.max(newWhiteScore, newBlackScore) >= targetLc) {
+      return newColor;
+    }
+
+    // If we hit bounds, stop
+    if (currentL <= 0 || currentL >= 1) break;
+  }
+
+  return oklch; // Return best effort (or original if failed)
+}
+
+/**
+ * Generates brand color variants (Light Main/Variant, Dark Main/Variant).
+ * @param baseColorHex The color selected by the user.
+ * @param role The role name (primary, secondary, etc.)
+ * @param baseMode The mode the user is currently editing ('light' or 'dark').
  */
 export function generateBrandColors(
   baseColorHex: string,
-  role: string
+  role: string,
+  baseMode: ThemeMode = "light"
 ): ColorVariant[] {
   const baseOklch = toOklch(baseColorHex);
   if (!baseOklch) {
     throw new Error("Invalid base color");
   }
 
-  const lightOffset = 0.1;
-  const darkOffset = 0.1;
+  // Ensure base color has good contrast
+  const adjustedBaseOklch = ensureContrast(baseOklch, 60);
+  const adjustedBaseHex = formatHex(adjustedBaseOklch);
+  const baseOn = generateOnColor(adjustedBaseOklch);
 
-  // Calculate light variant
-  let lightL = (baseOklch.l || 0) + lightOffset;
-  lightL = Math.max(0, Math.min(1, lightL));
-  const lightOklch: Oklch = { ...baseOklch, l: lightL, mode: "oklch" };
-  const lightHex = formatHex(lightOklch);
-  const lightOn = generateOnColor(lightOklch);
+  let lightMainOklch: Oklch;
+  let lightMainHex: string;
+  let lightMainOn: { hex: string; oklch: Oklch };
 
-  // Calculate dark variant
-  let darkL = (baseOklch.l || 0) - darkOffset;
-  darkL = Math.max(0, Math.min(1, darkL));
-  const darkOklch: Oklch = { ...baseOklch, l: darkL, mode: "oklch" };
-  const darkHex = formatHex(darkOklch);
-  const darkOn = generateOnColor(darkOklch);
+  let darkMainOklch: Oklch;
+  let darkMainHex: string;
+  let darkMainOn: { hex: string; oklch: Oklch };
 
-  // Base variant on-color
-  const baseOn = generateOnColor(baseOklch);
+  if (baseMode === "light") {
+    // --- Light Mode Base ---
+    // Input is Light Main
+    lightMainOklch = adjustedBaseOklch;
+    lightMainHex = adjustedBaseHex;
+    lightMainOn = baseOn;
 
-  // Return in order: Light -> Default -> Dark
+    // Generate Dark Main from Light Main
+    // Dark Main: Adjusted for dark background (Lighter, Pastel)
+    const darkMainL = 0.75;
+    const darkMainOklchRaw: Oklch = {
+      ...lightMainOklch,
+      l: darkMainL,
+      mode: "oklch",
+    };
+    darkMainOklch = ensureContrast(darkMainOklchRaw, 60);
+    darkMainHex = formatHex(darkMainOklch);
+    darkMainOn = generateOnColor(darkMainOklch);
+  } else {
+    // --- Dark Mode Base ---
+    // Input is Dark Main
+    darkMainOklch = adjustedBaseOklch;
+    darkMainHex = adjustedBaseHex;
+    darkMainOn = baseOn;
+
+    // Generate Light Main from Dark Main
+    // Light Main: Adjusted for light background (Darker, Saturated)
+    // If user picked a pastel color for dark mode, we need to darken it for light mode.
+    // Target L around 0.5 - 0.6?
+    const lightMainL = 0.55;
+    const lightMainOklchRaw: Oklch = {
+      ...darkMainOklch,
+      l: lightMainL,
+      mode: "oklch",
+    };
+    lightMainOklch = ensureContrast(lightMainOklchRaw, 60);
+    lightMainHex = formatHex(lightMainOklch);
+    lightMainOn = generateOnColor(lightMainOklch);
+  }
+
+  // --- Variants Generation ---
+
+  // Light Variant: Slightly different from Light Main (e.g. darker)
+  let lightVariantL = (lightMainOklch.l || 0) - 0.1;
+  lightVariantL = Math.max(0, Math.min(1, lightVariantL));
+  const lightVariantOklchRaw: Oklch = {
+    ...lightMainOklch,
+    l: lightVariantL,
+    mode: "oklch",
+  };
+  const lightVariantOklch = ensureContrast(lightVariantOklchRaw, 60);
+  const lightVariantHex = formatHex(lightVariantOklch);
+  const lightVariantOn = generateOnColor(lightVariantOklch);
+
+  // Dark Variant: Slightly different from Dark Main (e.g. darker)
+  let darkVariantL = (darkMainOklch.l || 0) - 0.1;
+  darkVariantL = Math.max(0, Math.min(1, darkVariantL));
+  const darkVariantOklchRaw: Oklch = {
+    ...darkMainOklch,
+    l: darkVariantL,
+    mode: "oklch",
+  };
+  const darkVariantOklch = ensureContrast(darkVariantOklchRaw, 60);
+  const darkVariantHex = formatHex(darkVariantOklch);
+  const darkVariantOn = generateOnColor(darkVariantOklch);
+
   return [
     {
       name: "light",
-      hex: lightHex,
-      oklch: lightOklch,
+      hex: lightMainHex,
+      oklch: lightMainOklch,
       variableName: `--color-${role}-light`,
-      onHex: lightOn.hex,
+      onHex: lightMainOn.hex,
       onVariableName: `--color-on-${role}-light`,
     },
     {
-      name: "default",
-      hex: baseColorHex,
-      oklch: baseOklch,
-      variableName: `--color-${role}-default`,
-      onHex: baseOn.hex,
-      onVariableName: `--color-on-${role}-default`,
+      name: "light-variant",
+      hex: lightVariantHex,
+      oklch: lightVariantOklch,
+      variableName: `--color-${role}-light-variant`,
+      onHex: lightVariantOn.hex,
+      onVariableName: `--color-on-${role}-light-variant`,
     },
     {
       name: "dark",
-      hex: darkHex,
-      oklch: darkOklch,
+      hex: darkMainHex,
+      oklch: darkMainOklch,
       variableName: `--color-${role}-dark`,
-      onHex: darkOn.hex,
+      onHex: darkMainOn.hex,
       onVariableName: `--color-on-${role}-dark`,
+    },
+    {
+      name: "dark-variant",
+      hex: darkVariantHex,
+      oklch: darkVariantOklch,
+      variableName: `--color-${role}-dark-variant`,
+      onHex: darkVariantOn.hex,
+      onVariableName: `--color-on-${role}-dark-variant`,
     },
   ];
 }

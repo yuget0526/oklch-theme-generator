@@ -14,8 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OKLCH Theme Generator",
-  description: "Create accessible color themes with OKLCH color space",
+  title: "a11yPalette - OKLCH Theme Generator",
+  description:
+    "Create accessible, beautiful color themes with OKLCH color space. a11yPalette helps you generate consistent color scales and ensure contrast compliance.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

@@ -20,7 +20,7 @@ import LayerCountInput from "./LayerCountInput";
 import PalettePreview from "./PalettePreview";
 import ColorGroupCreator from "./ColorGroupCreator";
 import CodeExporter from "./CodeExporter";
-import NestedLayerPreview from "@/components/NestedLayerPreview";
+import { NestedLayerPreview } from "@/components/NestedLayerPreview";
 
 import {
   LayoutDashboard,
@@ -44,8 +44,11 @@ import { Switch } from "@/components/ui/switch";
 export default function ColorGenerator() {
   // State
   const [primaryColor, setPrimaryColor] = useState<string>("#3b82f6");
-  const [secondaryColor, setSecondaryColor] = useState<string>("#10b981");
+  const [secondaryColor, setSecondaryColor] = useState<string>("#059669");
   const [tertiaryColor, setTertiaryColor] = useState<string>("#f43f5e");
+
+  const [showSecondary, setShowSecondary] = useState<boolean>(true);
+  const [showTertiary, setShowTertiary] = useState<boolean>(true);
 
   const [layerCount, setLayerCount] = useState<number>(5);
   const [baseMode, setBaseMode] = useState<ThemeMode>("light");
@@ -129,11 +132,6 @@ export default function ColorGenerator() {
     setCustomLightness(undefined);
   };
 
-  const handleModeChange = (mode: ThemeMode) => {
-    setBaseMode(mode);
-    setCustomLightness(undefined);
-  };
-
   const handleDirectionChange = (dir: "normal" | "inverted") => {
     setLayerDirection(dir);
     setCustomLightness(undefined);
@@ -207,12 +205,18 @@ export default function ColorGenerator() {
     }
   };
 
-  // Derived State - Brand Colors (3 variants)
-  const primaryVariants = generateBrandColors(primaryColor, "primary");
-
-  const secondaryVariants = generateBrandColors(secondaryColor, "secondary");
-
-  const tertiaryVariants = generateBrandColors(tertiaryColor, "tertiary");
+  // Derived State - Brand Colors (4 variants)
+  const primaryVariants = generateBrandColors(
+    primaryColor,
+    "primary",
+    baseMode
+  );
+  const secondaryVariants = showSecondary
+    ? generateBrandColors(secondaryColor, "secondary", baseMode)
+    : [];
+  const tertiaryVariants = showTertiary
+    ? generateBrandColors(tertiaryColor, "tertiary", baseMode)
+    : [];
 
   // Derived State - Background color values
   const effectiveBgHue = (() => {
@@ -231,9 +235,18 @@ export default function ColorGenerator() {
 
   // Current background color as HEX
   const currentBgHex = (() => {
+    let l = baseMode === "light" ? 0.98 : 0.15;
+
+    // Adjust for inverted direction to ensure background matches the layer stack start
+    if (layerDirection === "inverted") {
+      // Light Mode Inverted: Start darker (0.92) so layers can get lighter
+      // Dark Mode Inverted: Start lighter (0.35) so layers can get darker
+      l = baseMode === "light" ? 0.92 : 0.35;
+    }
+
     const bgColor = oklch({
       mode: "oklch",
-      l: baseMode === "light" ? 0.98 : 0.15,
+      l,
       c: effectiveBgChroma,
       h: effectiveBgHue,
     });
@@ -297,6 +310,30 @@ export default function ColorGenerator() {
   // Calculate current lightness values for the chart
   const currentLightnessValues = layerScales.map((l) => l.oklch.l || 0);
 
+  const handleModeChange = (mode: ThemeMode) => {
+    // When switching modes, we want to set the current input color
+    // to the color that was generated for that mode.
+
+    const targetVariantName = mode === "light" ? "light" : "dark";
+
+    const newPrimary = primaryVariants.find(
+      (v) => v.name === targetVariantName
+    )?.hex;
+    const newSecondary = secondaryVariants.find(
+      (v) => v.name === targetVariantName
+    )?.hex;
+    const newTertiary = tertiaryVariants.find(
+      (v) => v.name === targetVariantName
+    )?.hex;
+
+    if (newPrimary) setPrimaryColor(newPrimary);
+    if (newSecondary) setSecondaryColor(newSecondary);
+    if (newTertiary) setTertiaryColor(newTertiary);
+
+    setBaseMode(mode);
+    setCustomLightness(undefined);
+  };
+
   const sidebarProps = {
     baseMode,
     layerCount,
@@ -309,6 +346,10 @@ export default function ColorGenerator() {
     setSecondaryColor,
     tertiaryColor,
     setTertiaryColor,
+    showSecondary,
+    setShowSecondary,
+    showTertiary,
+    setShowTertiary,
     chromaGroups,
     handleAddChromaGroup,
     handleRemoveChromaGroup,
@@ -389,15 +430,16 @@ export default function ColorGenerator() {
           <div className="flex-1 overflow-hidden relative">
             <TabsContent
               value="preview"
-              className="absolute inset-0 m-0 h-full w-full animate-in fade-in duration-300"
+              className="absolute inset-0 m-0 h-full w-full animate-in fade-in duration-300 overflow-y-auto"
             >
-              <div className="h-full w-full" ref={previewRef}>
+              <div className="min-h-full w-full" ref={previewRef}>
                 <NestedLayerPreview
                   layers={activeLayers}
                   primary={primaryVariants}
                   secondary={secondaryVariants}
                   tertiary={tertiaryVariants}
                   mode={baseMode}
+                  backgroundColor={currentBgHex}
                   overrides={currentModeOverrides}
                 />
               </div>
@@ -418,19 +460,25 @@ export default function ColorGenerator() {
                   <div className="space-y-8">
                     <PalettePreview
                       role="primary"
-                      variants={primaryVariants}
+                      variants={primaryVariants.filter((v) =>
+                        v.name.startsWith(baseMode)
+                      )}
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
                     />
                     <PalettePreview
                       role="secondary"
-                      variants={secondaryVariants}
+                      variants={secondaryVariants.filter((v) =>
+                        v.name.startsWith(baseMode)
+                      )}
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
                     />
                     <PalettePreview
                       role="tertiary"
-                      variants={tertiaryVariants}
+                      variants={tertiaryVariants.filter((v) =>
+                        v.name.startsWith(baseMode)
+                      )}
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
                     />
@@ -448,10 +496,39 @@ export default function ColorGenerator() {
                     <span>Opposite Theme ({oppositeMode})</span>
                   </h2>
                   <div className="space-y-8">
-                    {/* 
-                      For Opposite Theme, we only show Layers because Brand Colors are shared.
-                      If the user edits a color here, they are editing the OPPOSITE mode.
-                    */}
+                    <PalettePreview
+                      role="primary"
+                      variants={primaryVariants.filter((v) =>
+                        v.name.startsWith(oppositeMode)
+                      )}
+                      overrides={oppositeModeOverrides}
+                      onOverride={(v, h) => {
+                        const key = `${oppositeMode}:${v}`;
+                        setColorOverrides((prev) => ({ ...prev, [key]: h }));
+                      }}
+                    />
+                    <PalettePreview
+                      role="secondary"
+                      variants={secondaryVariants.filter((v) =>
+                        v.name.startsWith(oppositeMode)
+                      )}
+                      overrides={oppositeModeOverrides}
+                      onOverride={(v, h) => {
+                        const key = `${oppositeMode}:${v}`;
+                        setColorOverrides((prev) => ({ ...prev, [key]: h }));
+                      }}
+                    />
+                    <PalettePreview
+                      role="tertiary"
+                      variants={tertiaryVariants.filter((v) =>
+                        v.name.startsWith(oppositeMode)
+                      )}
+                      overrides={oppositeModeOverrides}
+                      onOverride={(v, h) => {
+                        const key = `${oppositeMode}:${v}`;
+                        setColorOverrides((prev) => ({ ...prev, [key]: h }));
+                      }}
+                    />
                     <PalettePreview
                       role="layers"
                       layers={inactiveLayers}
@@ -540,6 +617,10 @@ interface SidebarContentProps {
   setSecondaryColor: (color: string) => void;
   tertiaryColor: string;
   setTertiaryColor: (color: string) => void;
+  showSecondary: boolean;
+  setShowSecondary: (show: boolean) => void;
+  showTertiary: boolean;
+  setShowTertiary: (show: boolean) => void;
   chromaGroups: ChromaGroup[];
   handleAddChromaGroup: (group: ChromaGroup) => void;
   handleRemoveChromaGroup: (id: string) => void;
@@ -568,6 +649,10 @@ function SidebarContent({
   setSecondaryColor,
   tertiaryColor,
   setTertiaryColor,
+  showSecondary,
+  setShowSecondary,
+  showTertiary,
+  setShowTertiary,
   chromaGroups,
   handleAddChromaGroup,
   handleRemoveChromaGroup,
@@ -591,10 +676,12 @@ function SidebarContent({
     <div className="flex flex-col h-full">
       <div className="h-16 px-6 border-b flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg">
-            O
-          </div>
-          <span className="font-bold text-lg tracking-tight">OKLCH Gen</span>
+          <img
+            src="/gigaptera_logo_hue.svg"
+            alt="A11yPalette Logo"
+            className="w-8 h-8"
+          />
+          <span className="font-bold text-lg tracking-tight">a11yPalette</span>
         </div>
       </div>
 
@@ -672,16 +759,23 @@ function SidebarContent({
                 label="Primary"
                 color={primaryColor}
                 onChange={setPrimaryColor}
+                mode={baseMode}
               />
               <OKLCHColorPicker
                 label="Secondary"
                 color={secondaryColor}
                 onChange={setSecondaryColor}
+                mode={baseMode}
+                disabled={!showSecondary}
+                onToggle={setShowSecondary}
               />
               <OKLCHColorPicker
                 label="Tertiary"
                 color={tertiaryColor}
                 onChange={setTertiaryColor}
+                mode={baseMode}
+                disabled={!showTertiary}
+                onToggle={setShowTertiary}
               />
             </div>
           </section>

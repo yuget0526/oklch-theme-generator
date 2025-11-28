@@ -17,7 +17,7 @@ export default function CopyLinkButton() {
       });
 
       setTimeout(() => setCopied(false), 2000);
-    } catch (_error) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };

@@ -1,14 +1,6 @@
 import React from "react";
 import { ColorVariant, LayerScale, ThemeMode } from "@/lib/color/color-utils";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import ContrastBadge from "@/components/ContrastBadge";
+import ContrastBadge from "./ContrastBadge";
 
 interface NestedLayerPreviewProps {
   layers: LayerScale[];
@@ -16,273 +8,279 @@ interface NestedLayerPreviewProps {
   secondary: ColorVariant[];
   tertiary: ColorVariant[];
   mode: ThemeMode;
+  backgroundColor: string;
   overrides?: Record<string, string>;
 }
 
-export default function NestedLayerPreview({
+// Helper for Layer Header
+const LayerHeader = ({
+  label,
+  layer,
+}: {
+  label: string;
+  layer: { hex: string; onHex: string };
+}) => (
+  <div className="flex justify-between items-center mb-6 opacity-50 text-[10px] font-bold tracking-widest uppercase">
+    <div className="flex items-center gap-2">
+      <div className="w-2 h-2 rounded-full bg-current" />
+      {label}
+    </div>
+    <div className="flex items-center gap-3">
+      <span className="font-mono">{layer.hex}</span>
+      <ContrastBadge
+        bgColor={layer.hex}
+        fgColor={layer.onHex}
+        className="scale-90 origin-right"
+      />
+    </div>
+  </div>
+);
+
+// Helper for Variant Column
+const VariantColumn = ({
+  title,
+  variants,
+  mainColor,
+  resolveColor,
+  mode,
+  bgColor,
+  fgColor,
+}: {
+  title: string;
+  variants: ColorVariant[];
+  mainColor: string;
+  resolveColor: (
+    v: ColorVariant
+  ) => ColorVariant & { hex: string; onHex: string };
+  mode: ThemeMode;
+  bgColor?: string;
+  fgColor?: string;
+}) => (
+  <div
+    className={`flex-1 p-6 rounded-2xl ${
+      !bgColor ? "bg-black/5 dark:bg-white/5" : ""
+    }`}
+    style={{
+      backgroundColor: bgColor,
+      color: fgColor,
+    }}
+  >
+    <h3
+      className="text-center font-bold text-lg mb-1"
+      style={{ color: mainColor }}
+    >
+      {title}
+    </h3>
+    <p className="text-center text-xs opacity-50 mb-6">Color Variants</p>
+    <div className="space-y-3">
+      {variants
+        .filter((v) => v.name.startsWith(mode))
+        .map((v) => {
+          const resolved = resolveColor(v);
+          // Display name: "light" -> "Main", "light-variant" -> "Variant"
+          const displayName =
+            v.name.replace(mode, "").replace("-", "") || "Main";
+
+          return (
+            <div
+              key={v.name}
+              className="flex items-center justify-between px-4 py-3 rounded-lg text-xs font-medium shadow-sm"
+              style={{ backgroundColor: resolved.hex, color: resolved.onHex }}
+            >
+              <span className="capitalize">
+                {displayName === "variant" ? "Variant" : "Main"}
+              </span>
+              <ContrastBadge
+                bgColor={resolved.hex}
+                fgColor={resolved.onHex}
+                className="scale-75 origin-right"
+              />
+            </div>
+          );
+        })}
+    </div>
+  </div>
+);
+
+export function NestedLayerPreview({
   layers,
   primary,
   secondary,
   tertiary,
   mode,
+  backgroundColor,
   overrides = {},
 }: NestedLayerPreviewProps) {
-  // We want to show the full depth if possible, or at least a representative set.
-  // The user wants "Background" to be reflected.
-  // Layer 0 is "background".
-  // Layer 1 is "surface-1".
+  const resolveColor = (variant: ColorVariant | undefined) => {
+    if (!variant)
+      return {
+        hex: "#000000",
+        onHex: "#FFFFFF",
+        variableName: "",
+        onVariableName: "",
+        name: "",
+        role: "",
+        oklch: { mode: "oklch" as const, l: 0, c: 0, h: 0 },
+      };
+    const hex = overrides[variant.variableName] || variant.hex;
+    const onHex = overrides[variant.onVariableName] || variant.onHex;
+    return { ...variant, hex, onHex };
+  };
 
-  // If we have layers [Bg, S1, S2, S3, S4].
-  // We want the root container to be Bg.
-  // Then S1 inside, S2 inside that...
+  const resolveLayer = (layer: LayerScale | undefined) => {
+    if (!layer)
+      return {
+        hex: "#FFFFFF",
+        onHex: "#000000",
+        variableName: "",
+        onVariableName: "",
+        name: "",
+        role: "",
+      };
+    const hex = overrides[layer.variableName] || layer.hex;
+    const onHex = overrides[layer.onVariableName] || layer.onHex;
+    return { ...layer, hex, onHex };
+  };
 
-  // Let's use all layers if count is small (<= 7), which is the max now.
-  const displayLayers = layers;
+  // Extract variants for current mode (for buttons)
+  const pMain = resolveColor(primary.find((v) => v.name === mode));
 
-  // Get background color (Layer 0)
-  const bgLayer = layers[0];
-  const bgHex = overrides[bgLayer.variableName] || bgLayer.hex;
+  // Layers
+  const l1 = resolveLayer(
+    layers.find((l) => l.name === "surface-1") || layers[0]
+  );
+  const l2 = resolveLayer(
+    layers.find((l) => l.name === "surface-2") || layers[1]
+  );
+  const l3 = resolveLayer(
+    layers.find((l) => l.name === "surface-3") || layers[2]
+  );
+  const l4 = layers.find((l) => l.name === "surface-4") || layers[3];
+  const resolvedL4 = l4 ? resolveLayer(l4) : undefined;
+
+  // Background layer object for consistency
+  const bgLayer = {
+    hex: backgroundColor,
+    onHex: l1.onHex, // Use l1's onHex as a fallback for background text color
+  };
 
   return (
-    <div
-      className={`h-full w-full overflow-y-auto transition-colors duration-300 ${mode}`}
-      style={{ backgroundColor: bgHex }}
-    >
-      <div className="min-h-full w-full flex flex-col items-center justify-center p-8 relative">
-        {/* Label for Layer 0 (Background) */}
-        <div className="w-full max-w-5xl flex-1 flex flex-col">
-          {/* Label for Layer 0 (Background) */}
+    <div className="w-full min-h-full p-8 transition-colors duration-300 flex flex-col items-center">
+      {/* BACKGROUND Layer */}
+      <div
+        className="w-full max-w-5xl rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex flex-col"
+        style={{ backgroundColor: bgLayer.hex, color: bgLayer.onHex }}
+      >
+        <LayerHeader label="BACKGROUND" layer={bgLayer} />
+
+        {/* Surface 1 */}
+        <div
+          className="w-full rounded-t-3xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col"
+          style={{ backgroundColor: l1.hex, color: l1.onHex }}
+        >
+          <LayerHeader label="Surface-1" layer={l1} />
+
+          {/* Surface 2 */}
           <div
-            className="flex justify-between items-center mb-4 px-2 opacity-40 text-[10px] font-mono uppercase tracking-widest pointer-events-none"
-            style={{
-              color: overrides[bgLayer.onVariableName] || bgLayer.onHex,
-            }}
+            className="w-full rounded-t-2xl p-6 sm:p-8 pb-0 shadow-sm transition-colors duration-300 flex-1 flex flex-col"
+            style={{ backgroundColor: l2.hex, color: l2.onHex }}
           >
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-current" />
-              {bgLayer.name}
-            </span>
-            <span>{bgHex}</span>
-            <ContrastBadge
-              bgColor={bgHex}
-              fgColor={overrides[bgLayer.onVariableName] || bgLayer.onHex}
-              className="ml-2"
-            />
-          </div>
+            <LayerHeader label="Surface-2" layer={l2} />
 
-          <RecursiveLayer
-            layers={displayLayers}
-            index={1} // Start from Layer 1 (Surface 1)
-            primary={primary}
-            secondary={secondary}
-            tertiary={tertiary}
-            mode={mode}
-            overrides={overrides}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RecursiveLayer({
-  layers,
-  index,
-  primary,
-  secondary,
-  tertiary,
-  mode,
-  overrides,
-}: {
-  layers: LayerScale[];
-  index: number;
-  primary: ColorVariant[];
-  secondary: ColorVariant[];
-  tertiary: ColorVariant[];
-  mode: ThemeMode;
-  overrides: Record<string, string>;
-}) {
-  // Base case: We have exhausted the layers or reached the "content" level.
-  // But we want to ensure the content (Cards) sits on the *last* layer.
-  // If index == layers.length, we are "inside" the last layer.
-  // Base case: We want to ensure the content (Cards) sits on the *last* layer.
-  // So we stop recursion at the last layer index.
-  // If layers.length is 5 (0-4).
-  // We want: Outer(0) -> S1(1) -> S2(2) -> S3(3) -> Content -> Cards(4).
-  // So we render containers for 1, 2, 3.
-  // And at index 4, we stop and render Content + Cards.
-
-  if (index >= layers.length - 1) {
-    // We are at the last layer index (e.g., 4).
-    // The parent (S3) has already rendered its container.
-    // We are now inside S3.
-    // We render the Content here.
-    // And the Cards will use the current layer (S4).
-
-    const cardLayer = layers[index];
-    const cardHex = overrides[cardLayer.variableName] || cardLayer.hex;
-    const cardOnHex = overrides[cardLayer.onVariableName] || cardLayer.onHex;
-
-    const getPrimary = (v: string) => {
-      const variant = primary.find((i) => i.name === v);
-      return variant
-        ? overrides[variant.variableName] || variant.hex
-        : primary[0].hex;
-    };
-
-    const getPrimaryOn = (v: string) => {
-      const variant = primary.find((i) => i.name === v);
-      return variant
-        ? overrides[variant.onVariableName] || variant.onHex
-        : "#ffffff";
-    };
-    const primaryDefault = getPrimary("default");
-    const primaryOnDefault = getPrimaryOn("default");
-
-    return (
-      <div className="p-8 flex flex-col items-center justify-center text-center space-y-6 animate-in zoom-in-95 duration-500">
-        <div className="space-y-2">
-          <h1
-            className="text-4xl font-extrabold tracking-tight lg:text-5xl"
-            style={{ color: primaryDefault }}
-          >
-            Nested Layers
-          </h1>
-          <p className="text-lg opacity-80 max-w-lg mx-auto">
-            This preview demonstrates how the generated background layers create
-            depth and hierarchy in your interface.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-4 justify-center">
-          <Button
-            size="lg"
-            style={{ backgroundColor: primaryDefault, color: primaryOnDefault }}
-          >
-            Get Started
-            <ContrastBadge
-              bgColor={primaryDefault}
-              fgColor={primaryOnDefault}
-              className="ml-2 bg-black/20 border-white/20"
-            />
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            style={{
-              borderColor: primaryDefault,
-              color: primaryDefault,
-            }}
-          >
-            Learn More
-            <ContrastBadge
-              bgColor="transparent" // Assuming transparent/bg color
-              fgColor={primaryDefault}
-              className="ml-2 bg-black/10 border-black/10 text-black dark:text-white dark:bg-white/10"
-            />
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mt-12">
-          {[primary, secondary, tertiary].map((variants, i) => (
-            <Card
-              key={i}
-              className="border-0 shadow-lg backdrop-blur-sm"
-              style={{
-                // Use the current layer (last layer) for the card background
-                backgroundColor: cardHex,
-                color: cardOnHex,
-              }}
+            {/* Surface 3 */}
+            <div
+              className="w-full rounded-t-xl p-8 sm:p-12 shadow-sm transition-colors duration-300 flex-1"
+              style={{ backgroundColor: l3.hex, color: l3.onHex }}
             >
-              <CardHeader>
-                <CardTitle
-                  style={{
-                    color:
-                      overrides[
-                        variants.find((v) => v.name === "default")
-                          ?.variableName || ""
-                      ] || variants.find((v) => v.name === "default")?.hex,
-                  }}
+              <LayerHeader label="Surface-3" layer={l3} />
+
+              {/* Main Content */}
+              <div className="text-center space-y-6 max-w-2xl mx-auto mb-16">
+                <h1
+                  className="text-5xl font-bold tracking-tight"
+                  style={{ color: pMain.hex }}
                 >
-                  {["Primary", "Secondary", "Tertiary"][i]}
-                </CardTitle>
-                <CardDescription style={{ color: cardOnHex, opacity: 0.7 }}>
-                  Color Variants
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {variants.map((v) => {
-                  const hex = overrides[v.variableName] || v.hex;
-                  const onHex = overrides[v.onVariableName] || v.onHex;
-                  return (
-                    <div
-                      key={v.name}
-                      className="flex items-center justify-between p-2 rounded"
-                      style={{ backgroundColor: hex, color: onHex }}
+                  Nested Layers
+                </h1>
+                <p className="text-lg opacity-70 leading-relaxed">
+                  This preview demonstrates how the generated background layers
+                  create depth and hierarchy in your interface.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                  {/* Filled Button */}
+                  <div className="relative group">
+                    <button
+                      className="pl-6 pr-32 py-3 rounded-lg font-semibold shadow-sm transition-transform active:scale-95 flex items-center h-12"
+                      style={{ backgroundColor: pMain.hex, color: pMain.onHex }}
                     >
-                      <span className="text-xs capitalize opacity-90 font-medium">
-                        {v.name}
-                      </span>
-                      {/* <div
-                        className="w-6 h-6 rounded-full"
-                        style={{ backgroundColor: hex }}
-                      /> */
-                      /* No need for circle if the whole bar is colored */}
+                      Get Started
+                    </button>
+                    <div className="absolute top-1/2 -translate-y-1/2 right-3">
                       <ContrastBadge
-                        bgColor={hex}
-                        fgColor={onHex}
-                        className="ml-2"
+                        bgColor={pMain.hex}
+                        fgColor={pMain.onHex}
                       />
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+
+                  {/* Outlined Button */}
+                  <div className="relative group">
+                    <button
+                      className="pl-6 pr-32 py-3 rounded-lg font-semibold border-2 transition-transform active:scale-95 flex items-center h-12"
+                      style={{
+                        borderColor: pMain.hex,
+                        color: pMain.hex,
+                        backgroundColor: "transparent",
+                      }}
+                    >
+                      Learn More
+                    </button>
+                    <div className="absolute top-1/2 -translate-y-1/2 right-3">
+                      <ContrastBadge bgColor={l3.hex} fgColor={pMain.hex} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Variants Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <VariantColumn
+                  title="Primary"
+                  variants={primary}
+                  mainColor={pMain.hex}
+                  resolveColor={resolveColor}
+                  mode={mode}
+                  bgColor={resolvedL4?.hex}
+                  fgColor={resolvedL4?.onHex}
+                />
+                {secondary.length > 0 && (
+                  <VariantColumn
+                    title="Secondary"
+                    variants={secondary}
+                    mainColor={resolveColor(secondary[0]).hex}
+                    resolveColor={resolveColor}
+                    mode={mode}
+                    bgColor={resolvedL4?.hex}
+                    fgColor={resolvedL4?.onHex}
+                  />
+                )}
+                {tertiary.length > 0 && (
+                  <VariantColumn
+                    title="Tertiary"
+                    variants={tertiary}
+                    mainColor={resolveColor(tertiary[0]).hex}
+                    resolveColor={resolveColor}
+                    mode={mode}
+                    bgColor={resolvedL4?.hex}
+                    fgColor={resolvedL4?.onHex}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    );
-  }
-
-  const layer = layers[index];
-  const isRoot = index === 0;
-  const layerHex = overrides[layer.variableName] || layer.hex;
-  const layerOnHex = overrides[layer.onVariableName] || layer.onHex;
-
-  return (
-    <div
-      className={`flex-1 w-full flex flex-col transition-colors duration-300 ${
-        isRoot
-          ? "h-full overflow-y-auto"
-          : "px-2 py-8 rounded-3xl shadow-xl ring-1 ring-black/5 dark:ring-white/5" // Updated padding: px-2 py-8
-      }`}
-      style={{
-        backgroundColor: layerHex,
-        color: layerOnHex,
-      }}
-    >
-      <div className="flex justify-between items-center mb-4 px-2 opacity-40 text-[10px] font-mono uppercase tracking-widest">
-        <span className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-current" />
-          {layer.name}
-        </span>
-        <span>{layerHex}</span>
-        <ContrastBadge
-          bgColor={layerHex}
-          fgColor={layerOnHex}
-          className="ml-2"
-        />
-      </div>
-
-      <RecursiveLayer
-        layers={layers}
-        index={index + 1}
-        primary={primary}
-        secondary={secondary}
-        tertiary={tertiary}
-        mode={mode}
-        overrides={overrides}
-      />
     </div>
   );
 }
