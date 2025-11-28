@@ -68,6 +68,7 @@ export default function ColorGenerator() {
 
   // Refs
   const previewRef = useRef<HTMLDivElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
 
   // URL State Management
   // 1. Sync state to URL
@@ -374,7 +375,7 @@ export default function ColorGenerator() {
                 variant="ghost"
                 size="icon"
                 onClick={() =>
-                  setBaseMode(baseMode === "light" ? "dark" : "light")
+                  handleModeChange(baseMode === "light" ? "dark" : "light")
                 }
                 title={`Switch to ${
                   baseMode === "light" ? "dark" : "light"

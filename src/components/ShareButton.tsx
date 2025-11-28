@@ -30,7 +30,7 @@ export default function ShareButton({ targetRef }: ShareButtonProps) {
           new ClipboardItem({ "image/png": blob }),
         ]);
         toast.success("Image copied to clipboard!");
-      } catch (_err) {
+      } catch {
         // Fallback to download
         const link = document.createElement("a");
         link.download = `oklch-palette-${Date.now()}.png`;
