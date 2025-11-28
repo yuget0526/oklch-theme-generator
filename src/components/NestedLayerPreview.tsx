@@ -8,6 +8,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import ContrastBadge from "@/components/ContrastBadge";
 
 interface NestedLayerPreviewProps {
   layers: LayerScale[];
@@ -62,6 +63,11 @@ export default function NestedLayerPreview({
               {bgLayer.name}
             </span>
             <span>{bgHex}</span>
+            <ContrastBadge
+              bgColor={bgHex}
+              fgColor={overrides[bgLayer.onVariableName] || bgLayer.onHex}
+              className="ml-2"
+            />
           </div>
 
           <RecursiveLayer
@@ -154,6 +160,11 @@ function RecursiveLayer({
             style={{ backgroundColor: primaryDefault, color: primaryOnDefault }}
           >
             Get Started
+            <ContrastBadge
+              bgColor={primaryDefault}
+              fgColor={primaryOnDefault}
+              className="ml-2 bg-black/20 border-white/20"
+            />
           </Button>
           <Button
             size="lg"
@@ -164,6 +175,11 @@ function RecursiveLayer({
             }}
           >
             Learn More
+            <ContrastBadge
+              bgColor="transparent" // Assuming transparent/bg color
+              fgColor={primaryDefault}
+              className="ml-2 bg-black/10 border-black/10 text-black dark:text-white dark:bg-white/10"
+            />
           </Button>
         </div>
 
@@ -212,6 +228,11 @@ function RecursiveLayer({
                         style={{ backgroundColor: hex }}
                       /> */
                       /* No need for circle if the whole bar is colored */}
+                      <ContrastBadge
+                        bgColor={hex}
+                        fgColor={onHex}
+                        className="ml-2"
+                      />
                     </div>
                   );
                 })}
@@ -246,6 +267,11 @@ function RecursiveLayer({
           {layer.name}
         </span>
         <span>{layerHex}</span>
+        <ContrastBadge
+          bgColor={layerHex}
+          fgColor={layerOnHex}
+          className="ml-2"
+        />
       </div>
 
       <RecursiveLayer
