@@ -1,0 +1,72 @@
+{
+  "Metadata": {
+    "title": "a11yPalette - OKLCH Theme Generator",
+    "description": "Generate accessible, consistent color palettes using the OKLCH color space."
+  },
+  "Common": {
+    "loading": "Loading...",
+    "error": "An error occurred"
+  },
+  "ColorGenerator": {
+    "brandColors": "Brand Colors",
+    "primary": "Primary",
+    "background": "Background Color",
+    "export": "Export Code",
+    "preview": "Preview",
+    "palette": "Palette",
+    "configuration": "Configuration",
+    "layerCount": "Layer Count",
+    "lightnessCurve": "Lightness Curve",
+    "reset": "Reset",
+    "invertLayers": "Invert Layers",
+    "lightToDark": "Light to Dark",
+    "darkToLight": "Dark to Light",
+    "activeTheme": "Active Theme ({mode})",
+    "oppositeTheme": "Opposite Theme ({mode})",
+    "chromaGroups": "Chroma Groups",
+    "randomize": "Randomize",
+    "randomized": "Randomized!",
+    "checkLightness": "Check Lightness",
+    "lightnessWarning": "Recommended lightness for this background: {min}% - {max}%",
+    "hexColor": "HEX Color",
+    "menu": "Menu",
+    "copyLink": "Copy Link",
+    "share": "Share",
+    "buyMeACoffee": "Buy Me a Coffee",
+    "themeSwitch": "Switch Theme"
+  },
+  "BackgroundColorControls": {
+    "title": "Background Color",
+    "syncMode": "Sync mode",
+    "customMode": "Custom mode",
+    "syncMessage": "Locked to Primary Hue",
+    "customBackgroundButton": "Set Custom Background",
+    "hexColor": "HEX Color",
+    "chroma": "Chroma (C)",
+    "hue": "Hue (H)",
+    "chromaAdjusted": "Chroma adjusted for readability",
+    "chromaCapped": "Value will be capped at {max} to ensure text contrast.",
+    "chromaExceeds": "Value exceeds recommended limit (0.01)."
+  },
+  "CodeExporter": {
+    "title": "Export Code",
+    "pureCss": "Pure CSS",
+    "tailwindV4": "Tailwind v4",
+    "tailwindV3": "Tailwind v3",
+    "figmaToken": "Figma Token",
+    "pureCssDesc": "Standard CSS variables format. Uses :root and .dark selectors.",
+    "tailwindV4Desc": "Tailwind CSS v4 complete @theme block. You can paste this directly into <code>globals.css</code>.",
+    "tailwindV3Desc": "Tailwind CSS v3 complete config. Paste into <code>tailwind.config.ts</code>, and also add Pure CSS variables to <code>globals.css</code>.",
+    "figmaTokenDesc": "W3C DTCG compliant Figma Token format (JSON). Compatible with Tokens Studio."
+  },
+  "SimulationControl": {
+    "title": "Color Blindness Sim",
+    "selectPlaceholder": "Select simulation...",
+    "none": "Normal Vision",
+    "protanopia": "Protanopia (Red-Blind)",
+    "deuteranopia": "Deuteranopia (Green-Blind)",
+    "tritanopia": "Tritanopia (Blue-Blind)",
+    "achromatopsia": "Achromatopsia (Monochromacy)",
+    "description": "Simulates how colors appear to people with this type of color blindness."
+  }
+}

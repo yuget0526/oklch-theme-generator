@@ -1,0 +1,72 @@
+{
+  "Metadata": {
+    "title": "a11yPalette - OKLCH Theme Generator",
+    "description": "OKLCH色空間を使用して、アクセシブルで美しいカラーパレットを作成します。"
+  },
+  "Common": {
+    "loading": "読み込み中...",
+    "error": "エラーが発生しました"
+  },
+  "ColorGenerator": {
+    "brandColors": "ブランドカラー",
+    "primary": "プライマリ",
+    "background": "背景色",
+    "export": "コード出力",
+    "preview": "プレビュー",
+    "palette": "パレット",
+    "configuration": "設定",
+    "layerCount": "レイヤー数",
+    "lightnessCurve": "明度カーブ",
+    "reset": "リセット",
+    "invertLayers": "レイヤー反転",
+    "lightToDark": "明 → 暗",
+    "darkToLight": "暗 → 明",
+    "activeTheme": "アクティブテーマ ({mode})",
+    "oppositeTheme": "対のテーマ ({mode})",
+    "chromaGroups": "クロープグループ",
+    "randomize": "ランダム生成",
+    "randomized": "ランダム生成しました！",
+    "checkLightness": "明度チェック",
+    "lightnessWarning": "この背景色での推奨明度: {min}% 〜 {max}%",
+    "hexColor": "HEXカラー",
+    "menu": "メニュー",
+    "copyLink": "リンクをコピー",
+    "share": "シェア",
+    "buyMeACoffee": "Buy Me a Coffee",
+    "themeSwitch": "テーマ切り替え"
+  },
+  "BackgroundColorControls": {
+    "title": "背景色設定",
+    "syncMode": "Syncモード",
+    "customMode": "カスタムモード",
+    "syncMessage": "背景色はプライマリカラーの色相と同期しています",
+    "customBackgroundButton": "カスタム背景色を設定",
+    "hexColor": "HEXカラー",
+    "chroma": "彩度 (Chroma)",
+    "hue": "色相 (Hue)",
+    "chromaAdjusted": "可読性のために彩度を調整しました",
+    "chromaCapped": "テキストのコントラストを確保するため、値は {max} に制限されます。",
+    "chromaExceeds": "推奨値 (0.01) を超えています。"
+  },
+  "CodeExporter": {
+    "title": "コード出力",
+    "pureCss": "Pure CSS",
+    "tailwindV4": "Tailwind v4",
+    "tailwindV3": "Tailwind v3",
+    "figmaToken": "Figmaトークン",
+    "pureCssDesc": "スタンダードなCSS変数形式。:root と .dark セレクタを使用。",
+    "tailwindV4Desc": "Tailwind CSS v4の完全な@themeブロック。そのまま <code>globals.css</code> にコピー&ペーストできます。",
+    "tailwindV3Desc": "Tailwind CSS v3の完全なconfig設定。<code>tailwind.config.ts</code> にコピー&ペースト後、Pure CSSタブの変数定義も <code>globals.css</code> に追加してください。",
+    "figmaTokenDesc": "W3C DTCG仕様準拠のFigma Token形式（JSON）。Tokens Studio等で使用可能。"
+  },
+  "SimulationControl": {
+    "title": "色覚シミュレーション",
+    "selectPlaceholder": "シミュレーションを選択...",
+    "none": "一般色覚 (Normal)",
+    "protanopia": "P型 (1型) - 赤を感じにくい",
+    "deuteranopia": "D型 (2型) - 緑を感じにくい",
+    "tritanopia": "T型 (3型) - 青を感じにくい",
+    "achromatopsia": "A型 (1色覚) - 色を感じない",
+    "description": "選択した色覚特性を持つ方に、色がどのように見えているかをシミュレートします。"
+  }
+}

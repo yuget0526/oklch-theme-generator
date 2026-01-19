@@ -22,7 +22,7 @@ export default function ColorGroupCreator({ onAdd }: ColorGroupCreatorProps) {
       chroma,
       lightness,
       count,
-      name.toLowerCase()
+      name.toLowerCase(),
     );
     onAdd(group);
   };
@@ -122,6 +122,33 @@ export default function ColorGroupCreator({ onAdd }: ColorGroupCreatorProps) {
             onChange={(e) => setCount(Number(e.target.value))}
             className="font-mono text-sm"
           />
+        </div>
+
+        {/* Live Preview */}
+        <div className="pt-2">
+          <Label className="text-xs text-muted-foreground block mb-2">
+            Preview
+          </Label>
+          <div className="grid grid-cols-6 gap-0.5 rounded-md overflow-hidden h-12">
+            {generateChromaGroup(
+              chroma,
+              lightness,
+              count,
+              "preview",
+            ).colors.map((c, i) => (
+              <div
+                key={i}
+                className="h-full w-full"
+                style={{ backgroundColor: c.variants[0].hex }} // Show Main variant
+                title={`Hue: ${Math.round(c.hue)}`}
+              />
+            ))}
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mt-1 px-1">
+            <span>{count} hues</span>
+            <span>L: {lightness.toFixed(2)}</span>
+            <span>C: {chroma.toFixed(3)}</span>
+          </div>
         </div>
 
         <Button onClick={handleAdd} className="w-full" size="sm">

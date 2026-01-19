@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Copy, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type ExportFormat = "css" | "tailwindV4" | "tailwindV3" | "figmaToken";
 
@@ -36,13 +37,14 @@ export default function CodeExporter({
   baseMode,
   overrides = {},
 }: CodeExporterProps) {
+  const t = useTranslations("CodeExporter");
   const [copiedTab, setCopiedTab] = React.useState<ExportFormat | null>(null);
 
   // Helper to get override
   const getOverride = (
     mode: ThemeMode,
     variableName: string,
-    defaultHex: string
+    defaultHex: string,
   ) => {
     return overrides[`${mode}:${variableName}`] || defaultHex;
   };
@@ -73,7 +75,7 @@ export default function CodeExporter({
         const onHex = getOverride(
           "light",
           variant.onVariableName,
-          variant.onHex
+          variant.onHex,
         );
         css += `  --color-${name}-variant: ${hex};\n`;
         css += `  --color-on-${name}-variant: ${onHex};\n`;
@@ -123,7 +125,7 @@ export default function CodeExporter({
         const onHex = getOverride(
           "dark",
           variant.onVariableName,
-          variant.onHex
+          variant.onHex,
         );
         css += `  --color-${name}-variant: ${hex};\n`;
         css += `  --color-on-${name}-variant: ${onHex};\n`;
@@ -170,7 +172,7 @@ export default function CodeExporter({
         const onHex = getOverride(
           "light",
           variant.onVariableName,
-          variant.onHex
+          variant.onHex,
         );
         css += `  --color-${name}-variant: ${hex};\n`;
         css += `  --color-on-${name}-variant: ${onHex};\n`;
@@ -214,7 +216,7 @@ export default function CodeExporter({
         const onHex = getOverride(
           "dark",
           variant.onVariableName,
-          variant.onHex
+          variant.onHex,
         );
         css += `  --color-${name}-variant: ${hex};\n`;
         css += `  --color-on-${name}-variant: ${onHex};\n`;
@@ -325,7 +327,7 @@ export default config;`;
           $value: getOverride(
             "light",
             lightMain.onVariableName,
-            lightMain.onHex
+            lightMain.onHex,
           ),
           $type: "color",
         };
@@ -335,7 +337,7 @@ export default config;`;
           $value: getOverride(
             "light",
             lightVariant.variableName,
-            lightVariant.hex
+            lightVariant.hex,
           ),
           $type: "color",
         };
@@ -343,7 +345,7 @@ export default config;`;
           $value: getOverride(
             "light",
             lightVariant.onVariableName,
-            lightVariant.onHex
+            lightVariant.onHex,
           ),
           $type: "color",
         };
@@ -368,7 +370,7 @@ export default config;`;
           $value: getOverride(
             "dark",
             darkVariant.variableName,
-            darkVariant.hex
+            darkVariant.hex,
           ),
           $type: "color",
         };
@@ -376,7 +378,7 @@ export default config;`;
           $value: getOverride(
             "dark",
             darkVariant.onVariableName,
-            darkVariant.onHex
+            darkVariant.onHex,
           ),
           $type: "color",
         };
@@ -441,7 +443,7 @@ export default config;`;
   const renderCodeBlock = (
     code: string,
     format: ExportFormat,
-    language: string
+    language: string,
   ) => (
     <div className="relative">
       <pre
@@ -469,44 +471,53 @@ export default config;`;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Export Code</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="css">
           <TabsList className="mb-4 grid w-full grid-cols-4">
-            <TabsTrigger value="css">Pure CSS</TabsTrigger>
-            <TabsTrigger value="tailwindV4">Tailwind v4</TabsTrigger>
-            <TabsTrigger value="tailwindV3">Tailwind v3</TabsTrigger>
-            <TabsTrigger value="figmaToken">Figma Token</TabsTrigger>
+            <TabsTrigger value="css">{t("pureCss")}</TabsTrigger>
+            <TabsTrigger value="tailwindV4">{t("tailwindV4")}</TabsTrigger>
+            <TabsTrigger value="tailwindV3">{t("tailwindV3")}</TabsTrigger>
+            <TabsTrigger value="figmaToken">{t("figmaToken")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="css" className="space-y-4">
             <p className="text-sm text-muted-foreground mb-2">
-              スタンダードなCSS変数形式。:root と .dark セレクタを使用。
+              {t("pureCssDesc")}
             </p>
             {renderCodeBlock(cssCode, "css", "css")}
           </TabsContent>
 
           <TabsContent value="tailwindV4" className="space-y-4">
             <p className="text-sm text-muted-foreground mb-2">
-              Tailwind CSS
-              v4の@themeディレクティブ形式。globals.cssに追加してください。
+              {t.rich("tailwindV4Desc", {
+                code: (chunks) => (
+                  <code className="mx-1 px-1.5 py-0.5 bg-muted rounded text-xs">
+                    {chunks}
+                  </code>
+                ),
+              })}
             </p>
             {renderCodeBlock(twV4Code, "tailwindV4", "css")}
           </TabsContent>
 
           <TabsContent value="tailwindV3" className="space-y-4">
             <p className="text-sm text-muted-foreground mb-2">
-              Tailwind CSS v3の設定ファイル形式。Pure
-              CSSも併せてglobals.cssに追加してください。
+              {t.rich("tailwindV3Desc", {
+                code: (chunks) => (
+                  <code className="mx-1 px-1.5 py-0.5 bg-muted rounded text-xs">
+                    {chunks}
+                  </code>
+                ),
+              })}
             </p>
             {renderCodeBlock(twV3Code, "tailwindV3", "typescript")}
           </TabsContent>
 
           <TabsContent value="figmaToken" className="space-y-4">
             <p className="text-sm text-muted-foreground mb-2">
-              W3C DTCG仕様準拠のFigma Token形式（JSON）。Tokens
-              Studio等で使用可能。
+              {t("figmaTokenDesc")}
             </p>
             {renderCodeBlock(figmaCode, "figmaToken", "json")}
           </TabsContent>

@@ -40,7 +40,7 @@ export interface ChromaGroup {
 
 const toOklch = converter("oklch");
 
-function generateOnColor(bgOklch: Oklch): { hex: string; oklch: Oklch } {
+export function generateOnColor(bgOklch: Oklch): { hex: string; oklch: Oklch } {
   const bgHex = formatHex(bgOklch);
 
   // Candidate 1: Pure White (Light) - Maximize contrast
@@ -71,7 +71,7 @@ function generateOnColor(bgOklch: Oklch): { hex: string; oklch: Oklch } {
  * Adjusts the lightness of a color to ensure it meets a minimum APCA contrast
  * with either pure white or pure black.
  */
-function ensureContrast(oklch: Oklch, targetLc: number = 60): Oklch {
+export function ensureContrast(oklch: Oklch, targetLc: number = 60): Oklch {
   const bgHex = formatHex(oklch);
   const whiteHex = "#ffffff";
   const blackHex = "#000000";
@@ -126,7 +126,7 @@ function ensureContrast(oklch: Oklch, targetLc: number = 60): Oklch {
 export function generateBrandColors(
   baseColorHex: string,
   role: string,
-  baseMode: ThemeMode = "light"
+  baseMode: ThemeMode = "light",
 ): ColorVariant[] {
   const baseOklch = toOklch(baseColorHex);
   if (!baseOklch) {
@@ -255,7 +255,7 @@ export function generateBrandColors(
 export function generateDefaultLightness(
   count: number,
   mode: ThemeMode,
-  direction: "normal" | "inverted" = "normal"
+  direction: "normal" | "inverted" = "normal",
 ): number[] {
   const isDark = mode === "dark";
   // Light mode: Start bright (0.99), end slightly darker (0.90)
@@ -303,7 +303,7 @@ export function generateLayerScale(
   count: number,
   mode: ThemeMode,
   direction: "normal" | "inverted" = "normal",
-  customLightness?: number[]
+  customLightness?: number[],
 ): LayerScale[] {
   // Use custom lightness if provided and matches count, otherwise generate default
   const lightnesses =
@@ -341,7 +341,7 @@ export function generateChromaGroup(
   chroma: number,
   lightness: number,
   count: number,
-  name: string
+  name: string,
 ): ChromaGroup {
   const groupColors = [];
   const hueStep = 360 / count;
@@ -379,7 +379,7 @@ export function generateChromaGroup(
  * Generates opposite variants.
  */
 export function generateOppositeVariants(
-  originalVariants: ColorVariant[]
+  originalVariants: ColorVariant[],
 ): ColorVariant[] {
   return originalVariants.map((v) => {
     const newL = 1 - (v.oklch.l || 0.5);
@@ -404,7 +404,7 @@ export function generateOppositeVariants(
  * Generates opposite layer scale.
  */
 export function generateOppositeLayerScale(
-  originalScales: LayerScale[]
+  originalScales: LayerScale[],
 ): LayerScale[] {
   const firstL = originalScales[0].oklch.l || 0;
   const isLight = firstL > 0.5;
@@ -434,4 +434,110 @@ export function generateOppositeLayerScale(
       // variableName and onVariableName remain the same as they are semantic keys
     };
   });
+}
+
+/**
+ * Calculates the accessible range of Lightness (0-1) for a given background color
+ * to meet a minimum APCA contrast level (default 45 for headers/large text).
+ * Returns { min, max }.
+ */
+export function getAccessibleLightnessRange(
+  backgroundHex: string,
+  minLc: number = 45,
+  chroma: number = 0,
+  hue: number = 0,
+): { min: number; max: number } {
+  const validL: number[] = [];
+  const step = 0.02;
+
+  for (let l = 0; l <= 1.0; l += step) {
+    const color: Oklch = { mode: "oklch", l, c: chroma, h: hue };
+    const hex = formatHex(color);
+    const score = Math.abs(getAPCAContrast(backgroundHex, hex));
+
+    if (score >= minLc) {
+      validL.push(l);
+    }
+  }
+
+  if (validL.length === 0) {
+    // If no single L value passes (unlikely for reasonable minLc), return full range or safe default
+    return { min: 0, max: 1 };
+  }
+
+  return {
+    min: Math.min(...validL),
+    max: Math.max(...validL),
+  };
+}
+
+/**
+ * Generates a random color palette with harmonious relationships.
+ * Uses Triadic or Split-Complementary harmony for better results.
+ * Constrains lightness based on background contrast if provided.
+ */
+export function generateRandomPalette(backgroundHex?: string): {
+  primary: string;
+  secondary: string;
+  tertiary: string;
+} {
+  // Random Hue for Primary (0-360)
+  const primaryHue = Math.floor(Math.random() * 360);
+
+  // Randomize harmony strategy
+  const strategy = Math.random();
+  let secondaryHue: number;
+  let tertiaryHue: number;
+
+  if (strategy < 0.33) {
+    // Triadic (120 degrees apart)
+    secondaryHue = (primaryHue + 120) % 360;
+    tertiaryHue = (primaryHue + 240) % 360;
+  } else if (strategy < 0.66) {
+    // Split Complementary (150 degrees apart)
+    secondaryHue = (primaryHue + 150) % 360;
+    tertiaryHue = (primaryHue + 210) % 360;
+  } else {
+    // Analogous (30-60 degrees apart)
+    secondaryHue = (primaryHue + 40) % 360;
+    tertiaryHue = (primaryHue - 40 + 360) % 360;
+  }
+
+  // Determine safe lightness range
+  let minL = 0.45;
+  let maxL = 0.75;
+  const targetC = 0.15; // Typical vibrant chroma
+
+  if (backgroundHex) {
+    const range = getAccessibleLightnessRange(
+      backgroundHex,
+      45,
+      targetC,
+      primaryHue,
+    );
+    // Clamp to reasonable UI colors (don't go too black or too white even if allowed)
+    minL = Math.max(0.3, range.min);
+    maxL = Math.min(0.9, range.max);
+
+    // If range is inverted (e.g. dark bg allows 0.6-1.0), ensure we pick valid
+    if (minL > maxL) {
+      // Fallback
+      minL = range.min;
+      maxL = range.max;
+    }
+  }
+
+  // Randomize Lightness and Chroma slightly for variation
+  const l = minL + Math.random() * (maxL - minL);
+  const c = targetC + (Math.random() * 0.05 - 0.025); // 0.125 - 0.175
+
+  const p: Oklch = { mode: "oklch", l, c, h: primaryHue };
+  const s: Oklch = { mode: "oklch", l, c, h: secondaryHue };
+  const t: Oklch = { mode: "oklch", l, c, h: tertiaryHue };
+
+  return {
+    primary: formatHex(p),
+    secondary: formatHex(s),
+    tertiary: formatHex(t),
+  };
 }

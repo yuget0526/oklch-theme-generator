@@ -1,6 +1,16 @@
 # OKLCH Theme Generator
 
+![a11yPalette Hero Image](public/og-image.png)
+
+[![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-Deployed-blue?logo=google-cloud&style=for-the-badge)](https://a11ypalette.gigaptera.com)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&style=for-the-badge)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript&style=for-the-badge)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
 [English](#english) | [日本語](#japanese)
+
+> [!TIP]
+> **Try the Demo:** [https://a11ypalette.gigaptera.com](https://a11ypalette.gigaptera.com)
 
 ---
 
@@ -20,6 +30,7 @@ OKLCH Theme Generator is a professional color theme generation tool built with t
 - ⚡ **Real-time preview** - See changes instantly in a nested layer preview
 - 📋 **Export to CSS/Tailwind** - Copy-ready code for your projects
 - 🎯 **Lightness validation** - Ensures optimal visibility in both themes (0.4-0.7 range)
+- ♿ **Accessibility Safety** - Color blindness simulation & contrast checks
 
 ### Theme Generation Logic
 

@@ -1,0 +1,52 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: a11ypalette
+  SERVICE_NAME: a11ypalette
+  REGION: asia-northeast1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # NOTE: Workload Identity Federation is recommended for security.
+      # However, for simplicity if not set up, user might use SA Key.
+      # This template assumes WIF or SA Key will be configured via secrets.
+      # Uncomment the appropriate section.
+
+      # Option 1: Workload Identity Federation (Recommended)
+      # - name: Authenticate to Google Cloud
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
+      #     service_account: 'my-service-account@my-project.iam.gserviceaccount.com'
+
+      # Option 2: Service Account Key (Legacy/Simpler)
+      - name: Authenticate to Google Cloud (SA Key)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          source: .
+          # Using source deploy (Cloud Build) instead of pre-built image
+          flags: "--allow-unauthenticated"

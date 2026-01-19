@@ -1,168 +1,175 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { oklch, formatHex } from "culori";
-import { LightnessChart } from "@/components/LightnessChart";
 import {
-  ThemeMode,
-  ChromaGroup,
-  generateBrandColors,
-  generateLayerScale,
-  generateOppositeLayerScale,
-} from "@/lib/color/color-utils";
-import {
-  serializeState,
-  deserializeState,
-  ColorGeneratorState,
-} from "@/lib/url-state";
-import OKLCHColorPicker from "./OKLCHColorPicker";
-import LayerCountInput from "./LayerCountInput";
-import PalettePreview from "./PalettePreview";
-import ColorGroupCreator from "./ColorGroupCreator";
-import CodeExporter from "./CodeExporter";
-import { NestedLayerPreview } from "@/components/NestedLayerPreview";
-
-import {
+  Settings2,
+  Share2,
+  Copy,
   LayoutDashboard,
   Palette,
   Code,
-  Settings2,
-  Sun,
-  Moon,
   Menu,
+  Moon,
+  Sun,
+  Dices,
+  Coffee,
+  Github,
 } from "lucide-react";
-import BackgroundColorControls from "@/components/BackgroundColorControls";
-import CopyLinkButton from "@/components/CopyLinkButton";
-import ShareButton from "@/components/ShareButton";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import BackgroundColorControls from "@/components/BackgroundColorControls";
+import SimulationControl from "@/components/SimulationControl"; // Import Control
+import OKLCHColorPicker from "@/components/OKLCHColorPicker";
+import { LightnessChart } from "@/components/LightnessChart";
+import { NestedLayerPreview } from "@/components/NestedLayerPreview";
+import LayerCountInput from "@/components/LayerCountInput";
+import PalettePreview from "@/components/PalettePreview";
+import CodeExporter from "@/components/CodeExporter";
+import ColorGroupCreator from "@/components/ColorGroupCreator";
+import {
+  type ChromaGroup,
+  generateLayerScale,
+  generateBrandColors,
+  generateOppositeLayerScale,
+  generateRandomPalette,
+  ThemeMode,
+} from "@/lib/color/color-utils";
+import { generateSemanticColors } from "@/lib/color/semantic-colors";
+import { SimulationType } from "@/lib/color/simulation"; // Import SimulationType
 import NextImage from "next/image";
+
+// ... (existing imports)
+
+// ... (existing imports)
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 
+import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import LocaleSwitcher from "@/components/LocaleSwitcher";
+import { useRouter, usePathname } from "@/i18n/routing";
+import { useDebouncedCallback } from "use-debounce";
+
 export default function ColorGenerator() {
-  // State
-  const [primaryColor, setPrimaryColor] = useState<string>("#3b82f6");
-  const [secondaryColor, setSecondaryColor] = useState<string>("#059669");
-  const [tertiaryColor, setTertiaryColor] = useState<string>("#f43f5e");
+  const t = useTranslations("ColorGenerator");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Initial State from URL
+  const [primaryColor, setPrimaryColor] = useState<string>(
+    searchParams.get("p") ? `#${searchParams.get("p")}` : "#3b82f6",
+  );
+  const [secondaryColor, setSecondaryColor] = useState<string>(
+    searchParams.get("s") ? `#${searchParams.get("s")}` : "#059669",
+  );
+  const [tertiaryColor, setTertiaryColor] = useState<string>(
+    searchParams.get("t") ? `#${searchParams.get("t")}` : "#8b5cf6",
+  );
 
   const [showSecondary, setShowSecondary] = useState<boolean>(true);
   const [showTertiary, setShowTertiary] = useState<boolean>(true);
 
-  const [layerCount, setLayerCount] = useState<number>(5);
-  const [baseMode, setBaseMode] = useState<ThemeMode>("light");
+  const [layerCount, setLayerCount] = useState<number>(
+    searchParams.get("lc") ? Number(searchParams.get("lc")) : 6,
+  );
+  const [baseMode, setBaseMode] = useState<ThemeMode>(
+    (searchParams.get("m") as ThemeMode) || "light",
+  );
   const [layerDirection, setLayerDirection] = useState<"normal" | "inverted">(
-    "normal"
-  );
-  const [colorOverrides, setColorOverrides] = useState<Record<string, string>>(
-    {}
+    searchParams.get("ld") === "i" ? "inverted" : "normal",
   );
 
-  const [chromaGroups, setChromaGroups] = useState<ChromaGroup[]>([]);
-  const [customLightness, setCustomLightness] = useState<number[] | undefined>(
-    undefined
+  // Custom lightness... complex to deserialize efficiently from simple params, skipping for now unless critical.
+
+  // Background Color State
+  const [bgMode, setBgMode] = useState<"sync" | "custom">(
+    searchParams.get("bg") === "c" ? "custom" : "sync",
+  );
+  const [customBgHue, setCustomBgHue] = useState<number | undefined>(
+    searchParams.get("bgh") ? Number(searchParams.get("bgh")) : undefined,
+  );
+  const [customBgChroma, setCustomBgChroma] = useState<number | undefined>(
+    searchParams.get("bgc") ? Number(searchParams.get("bgc")) : undefined,
   );
 
-  // Background color state
-  const [bgMode, setBgMode] = useState<"sync" | "custom">("sync");
-  const [customBgHue, setCustomBgHue] = useState<number | null>(null);
-  const [customBgChroma, setCustomBgChroma] = useState<number | null>(null);
+  const [simulationMode, setSimulationMode] = useState<SimulationType>("none");
 
-  // Refs
-  const previewRef = useRef<HTMLDivElement>(null);
-  const paletteRef = useRef<HTMLDivElement>(null);
+  // Sync state to URL with debounce
+  const updateUrl = useDebouncedCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
 
-  // URL State Management
-  // 1. Sync state to URL
-  React.useEffect(() => {
-    const state: ColorGeneratorState = {
-      primaryColor,
-      secondaryColor,
-      tertiaryColor,
-      layerCount,
-      bgMode,
-      customBgHue: customBgHue ?? undefined,
-      customBgChroma: customBgChroma ?? undefined,
-      baseMode,
-      layerDirection,
-    };
+    // Colors (strip #)
+    params.set("p", primaryColor.replace("#", ""));
+    params.set("s", secondaryColor.replace("#", ""));
+    params.set("t", tertiaryColor.replace("#", ""));
 
-    const queryString = serializeState(state);
-    const newUrl = `${window.location.pathname}?s=${queryString}`;
+    // Toggles (Implied by presence? No, let's look at show states)
+    // If we want to hide them, we might need a flag, or just unset the color?
+    // But color state is persistent.
+    // Let's just sync the colors for now.
 
-    // Update URL without adding to history
-    window.history.replaceState(null, "", newUrl);
+    params.set("lc", layerCount.toString());
+    params.set("m", baseMode);
+    params.set("ld", layerDirection === "inverted" ? "i" : "n");
+
+    if (bgMode === "custom") {
+      params.set("bg", "c");
+      if (customBgHue !== undefined) params.set("bgh", customBgHue.toString());
+      if (customBgChroma !== undefined)
+        params.set("bgc", customBgChroma.toString());
+    } else {
+      params.delete("bg");
+      params.delete("bgh");
+      params.delete("bgc");
+    }
+
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, 500);
+
+  // Trigger URL update on state change
+  useEffect(() => {
+    updateUrl();
   }, [
     primaryColor,
     secondaryColor,
     tertiaryColor,
     layerCount,
+    baseMode,
+    layerDirection,
     bgMode,
     customBgHue,
     customBgChroma,
-    baseMode,
-    layerDirection,
+    updateUrl,
   ]);
 
-  // 2. Restore state from URL on mount
-  React.useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const restoredState = deserializeState(searchParams);
+  const [customLightness, setCustomLightness] = useState<number[] | undefined>(
+    undefined,
+  );
 
-    if (restoredState.primaryColor) setPrimaryColor(restoredState.primaryColor);
-    if (restoredState.secondaryColor)
-      setSecondaryColor(restoredState.secondaryColor);
-    if (restoredState.tertiaryColor)
-      setTertiaryColor(restoredState.tertiaryColor);
-    if (restoredState.layerCount) setLayerCount(restoredState.layerCount);
-    if (restoredState.baseMode) setBaseMode(restoredState.baseMode);
-    if (restoredState.layerDirection)
-      setLayerDirection(restoredState.layerDirection);
-    if (restoredState.bgMode) setBgMode(restoredState.bgMode);
-    if (restoredState.customBgHue !== undefined)
-      setCustomBgHue(restoredState.customBgHue);
-    if (restoredState.customBgChroma !== undefined)
-      setCustomBgChroma(restoredState.customBgChroma);
-  }, []);
+  // Manual Color Overrides (variableName -> hex)
+  const [colorOverrides, setColorOverrides] = useState<Record<string, string>>(
+    {},
+  );
 
-  // Handlers with reset logic
+  const [chromaGroups, setChromaGroups] = useState<ChromaGroup[]>([]);
+
+  // Refs for screenshots/scrolling
+  const previewRef = useRef<HTMLDivElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
+
+  // Handlers for Background Controls
+  const handleBgModeChange = (isCustom: boolean) => {
+    setBgMode(isCustom ? "custom" : "sync");
+  };
+
   const handleLayerCountChange = (count: number) => {
     setLayerCount(count);
+    // Reset custom lightness when layer count changes
     setCustomLightness(undefined);
-  };
-
-  const handleDirectionChange = (dir: "normal" | "inverted") => {
-    setLayerDirection(dir);
-    setCustomLightness(undefined);
-  };
-
-  // Background color validation
-  const validateChroma = (chroma: number): number => {
-    const MAX_CHROMA = 0.01;
-    if (chroma > MAX_CHROMA) {
-      toast.info("Chroma adjusted to 0.01 for readability", {
-        description: "Background chroma was too high",
-      });
-      return MAX_CHROMA;
-    }
-    return chroma;
-  };
-
-  // Background color handlers
-  const handleBgModeChange = (isCustom: boolean) => {
-    if (isCustom) {
-      // Switch to Custom mode
-      setCustomBgHue(primaryVariants[0].oklch.h || 0);
-      setCustomBgChroma(0.008);
-      setBgMode("custom");
-    } else {
-      // Switch to Sync mode
-      setCustomBgHue(null);
-      setCustomBgChroma(null);
-      setBgMode("sync");
-    }
   };
 
   const handleBgHueChange = (hue: number) => {
@@ -173,15 +180,19 @@ export default function ColorGenerator() {
   };
 
   const handleBgChromaChange = (chroma: number) => {
-    const validated = validateChroma(chroma);
-    setCustomBgChroma(validated);
+    setCustomBgChroma(chroma);
+    if (chroma > 0.01) {
+      toast.info("High chroma detected", {
+        description:
+          "Text readability might be affected on high chroma backgrounds.",
+      });
+    }
     if (bgMode === "sync") {
       setBgMode("custom");
     }
   };
 
   const handleBgHexChange = (hex: string) => {
-    // Convert HEX to OKLCH
     const color = oklch(hex);
     if (!color) return;
 
@@ -189,9 +200,9 @@ export default function ColorGenerator() {
     let chroma = color.c || 0;
 
     // Validate and correct chroma if necessary
-    const MAX_CHROMA = 0.01;
+    const MAX_CHROMA = 0.03;
     if (chroma > MAX_CHROMA) {
-      toast.info("Chroma adjusted to 0.01 for readability", {
+      toast.info("Chroma adjusted to 0.03 for readability", {
         description: `Hue (${Math.round(hue)}°) preserved, chroma corrected`,
       });
       chroma = MAX_CHROMA;
@@ -210,7 +221,7 @@ export default function ColorGenerator() {
   const primaryVariants = generateBrandColors(
     primaryColor,
     "primary",
-    baseMode
+    baseMode,
   );
   const secondaryVariants = showSecondary
     ? generateBrandColors(secondaryColor, "secondary", baseMode)
@@ -229,9 +240,14 @@ export default function ColorGenerator() {
 
   const effectiveBgChroma = (() => {
     if (bgMode === "sync") {
-      return 0.008;
+      // If primary color is achromatic (low chroma), keep background neutral
+      const primaryC = primaryVariants[0]?.oklch.c || 0;
+      if (primaryC < 0.02) {
+        return 0;
+      }
+      return 0.012;
     }
-    return customBgChroma ?? 0.008;
+    return customBgChroma ?? 0.012;
   })();
 
   // Current background color as HEX
@@ -254,6 +270,10 @@ export default function ColorGenerator() {
     return formatHex(bgColor) || "#FFFFFF";
   })();
 
+  // Derived State - Semantic Colors
+  const semanticColors = generateSemanticColors(baseMode, currentBgHex);
+  const semanticVariants = Object.values(semanticColors);
+
   // Derived State - Layer Scales (Backgrounds)
   const layerScales = generateLayerScale(
     effectiveBgHue,
@@ -261,7 +281,7 @@ export default function ColorGenerator() {
     layerCount,
     baseMode,
     layerDirection,
-    customLightness
+    customLightness,
   );
 
   const oppositeMode = baseMode === "light" ? "dark" : "light";
@@ -318,13 +338,13 @@ export default function ColorGenerator() {
     const targetVariantName = mode === "light" ? "light" : "dark";
 
     const newPrimary = primaryVariants.find(
-      (v) => v.name === targetVariantName
+      (v) => v.name === targetVariantName,
     )?.hex;
     const newSecondary = secondaryVariants.find(
-      (v) => v.name === targetVariantName
+      (v) => v.name === targetVariantName,
     )?.hex;
     const newTertiary = tertiaryVariants.find(
-      (v) => v.name === targetVariantName
+      (v) => v.name === targetVariantName,
     )?.hex;
 
     if (newPrimary) setPrimaryColor(newPrimary);
@@ -340,7 +360,7 @@ export default function ColorGenerator() {
     layerCount,
     setLayerCount: handleLayerCountChange,
     layerDirection,
-    setLayerDirection: handleDirectionChange,
+    setLayerDirection,
     primaryColor,
     setPrimaryColor,
     secondaryColor,
@@ -365,6 +385,15 @@ export default function ColorGenerator() {
     handleBgHueChange,
     handleBgChromaChange,
     handleBgHexChange,
+    simulationMode,
+    setSimulationMode,
+  };
+
+  const handleRandomize = () => {
+    const palette = generateRandomPalette(currentBgHex);
+    setPrimaryColor(palette.primary);
+    setSecondaryColor(palette.secondary);
+    setTertiaryColor(palette.tertiary);
   };
 
   return (
@@ -381,7 +410,12 @@ export default function ColorGenerator() {
             <div className="flex items-center gap-2 lg:hidden">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="-ml-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="-ml-2"
+                    aria-label={t("menu")}
+                  >
                     <Menu size={20} />
                   </Button>
                 </SheetTrigger>
@@ -398,21 +432,37 @@ export default function ColorGenerator() {
             <TabsList>
               <TabsTrigger value="preview" className="space-x-2">
                 <LayoutDashboard size={16} />
-                <span>Preview</span>
+                <span>{t("preview")}</span>
               </TabsTrigger>
               <TabsTrigger value="palette" className="space-x-2">
                 <Palette size={16} />
-                <span>Palette</span>
+                <span>{t("palette")}</span>
               </TabsTrigger>
               <TabsTrigger value="code" className="space-x-2">
                 <Code size={16} />
-                <span>Export</span>
+                <span>{t("export")}</span>
               </TabsTrigger>
             </TabsList>
 
             <div className="hidden lg:flex items-center gap-2">
+              <SimulationControl
+                simulationMode={simulationMode}
+                onSimulationChange={setSimulationMode}
+                variant="header"
+              />
+              <LocaleSwitcher />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRandomize}
+                title={t("randomize")}
+                aria-label={t("randomize")}
+              >
+                <Dices size={20} />
+              </Button>
               <CopyLinkButton />
-              <ShareButton targetRef={previewRef} />
+              <BuyMeACoffeeButton />
+              <ShareButton />
               <Button
                 variant="ghost"
                 size="icon"
@@ -422,8 +472,23 @@ export default function ColorGenerator() {
                 title={`Switch to ${
                   baseMode === "light" ? "dark" : "light"
                 } mode`}
+                aria-label={t("themeSwitch")}
               >
                 {baseMode === "light" ? <Moon size={20} /> : <Sun size={20} />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  window.open(
+                    "https://github.com/gigaptera/oklch-theme-generator",
+                    "_blank",
+                  )
+                }
+                title="GitHub"
+                aria-label="GitHub"
+              >
+                <Github size={20} />
               </Button>
             </div>
           </header>
@@ -442,6 +507,7 @@ export default function ColorGenerator() {
                   mode={baseMode}
                   backgroundColor={currentBgHex}
                   overrides={currentModeOverrides}
+                  simulationMode={simulationMode}
                 />
               </div>
             </TabsContent>
@@ -456,21 +522,22 @@ export default function ColorGenerator() {
               >
                 <section>
                   <h2 className="text-2xl font-bold mb-6 flex items-center space-x-2">
-                    <span>Active Theme ({baseMode})</span>
+                    <span>{t("activeTheme", { mode: baseMode })}</span>
                   </h2>
                   <div className="space-y-8">
                     <PalettePreview
                       role="primary"
                       variants={primaryVariants.filter((v) =>
-                        v.name.startsWith(baseMode)
+                        v.name.startsWith(baseMode),
                       )}
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
+                      simulationMode={simulationMode}
                     />
                     <PalettePreview
                       role="secondary"
                       variants={secondaryVariants.filter((v) =>
-                        v.name.startsWith(baseMode)
+                        v.name.startsWith(baseMode),
                       )}
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
@@ -478,7 +545,7 @@ export default function ColorGenerator() {
                     <PalettePreview
                       role="tertiary"
                       variants={tertiaryVariants.filter((v) =>
-                        v.name.startsWith(baseMode)
+                        v.name.startsWith(baseMode),
                       )}
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
@@ -489,18 +556,39 @@ export default function ColorGenerator() {
                       overrides={currentModeOverrides}
                       onOverride={handleOverride}
                     />
+                    <Separator className="col-span-full" />
+                    <PalettePreview
+                      role="semantic"
+                      variants={semanticVariants}
+                      overrides={currentModeOverrides}
+                      onOverride={handleOverride}
+                    />
+                    <PalettePreview
+                      role="semantic" // Helper to map type "semantic" to "primary" or just use "semantic" if PalettePreview supports it?
+                      // Wait, PalettePreview props: role is "primary" | "secondary" | "tertiary" | "layers".
+                      // I need to update PalettePreview types or cast/fake it.
+                      // Let's check PalettePreview types first. Assuming I can extend it or use "primary" label for now but customized?
+                      // Actually, let's just use "primary" as a fallback if types are strict, but better to update types.
+                      // For now, let's look at PalettePreview.tsx next.
+                      // I'll assume for this step I add it, and if it errors I fix PalettePreview.
+                      // But wait, "semantic" is not a valid role in current types.
+                      // I'll use "primary" for now to pass type check and change label via title if possible?
+                      // No, role controls the label.
+                      // I'll skip adding this block in this tool call and check/update PalettePreview first.
+                      // So I will only do the first edit.
+                    />
                   </div>
                 </section>
 
                 <section className="opacity-75">
                   <h2 className="text-2xl font-bold mb-6 flex items-center space-x-2">
-                    <span>Opposite Theme ({oppositeMode})</span>
+                    <span>{t("oppositeTheme", { mode: oppositeMode })}</span>
                   </h2>
                   <div className="space-y-8">
                     <PalettePreview
                       role="primary"
                       variants={primaryVariants.filter((v) =>
-                        v.name.startsWith(oppositeMode)
+                        v.name.startsWith(oppositeMode),
                       )}
                       overrides={oppositeModeOverrides}
                       onOverride={(v, h) => {
@@ -511,7 +599,7 @@ export default function ColorGenerator() {
                     <PalettePreview
                       role="secondary"
                       variants={secondaryVariants.filter((v) =>
-                        v.name.startsWith(oppositeMode)
+                        v.name.startsWith(oppositeMode),
                       )}
                       overrides={oppositeModeOverrides}
                       onOverride={(v, h) => {
@@ -522,7 +610,7 @@ export default function ColorGenerator() {
                     <PalettePreview
                       role="tertiary"
                       variants={tertiaryVariants.filter((v) =>
-                        v.name.startsWith(oppositeMode)
+                        v.name.startsWith(oppositeMode),
                       )}
                       overrides={oppositeModeOverrides}
                       onOverride={(v, h) => {
@@ -544,25 +632,29 @@ export default function ColorGenerator() {
 
                 {chromaGroups.length > 0 && (
                   <section>
-                    <h2 className="text-2xl font-bold mb-6">Chroma Groups</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <h2 className="text-2xl font-bold mb-6">
+                      {t("chromaGroups")}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {chromaGroups.map((group) => (
                         <div
                           key={group.id}
-                          className="p-6 bg-card rounded-xl border shadow-sm"
+                          className="p-4 bg-card rounded-lg border shadow-sm"
                         >
-                          <h3 className="font-bold mb-4">{group.name}</h3>
-                          <div className="flex flex-wrap gap-2">
+                          <h3 className="font-bold mb-3 text-sm">
+                            {group.name}
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             {group.colors.map((c, i) => (
-                              <div key={i} className="flex flex-col space-y-2">
-                                <span className="text-xs font-mono text-muted-foreground">
+                              <div key={i} className="flex flex-col space-y-1">
+                                <span className="text-[10px] font-mono text-muted-foreground">
                                   Hue {Math.round(c.hue)}°
                                 </span>
-                                <div className="flex space-x-1">
+                                <div className="flex space-x-0.5">
                                   {c.variants.map((v, j) => (
                                     <div
                                       key={j}
-                                      className="w-8 h-8 rounded shadow-sm ring-1 ring-border"
+                                      className="w-6 h-6 rounded-sm shadow-sm ring-1 ring-border/50"
                                       style={{ backgroundColor: v.hex }}
                                       title={v.name}
                                     />
@@ -669,6 +761,7 @@ function SidebarContent({
   handleBgChromaChange,
   handleBgHexChange,
 }: SidebarContentProps) {
+  const t = useTranslations("ColorGenerator");
   // Determine chart range based on mode
   const chartMin = baseMode === "light" ? 0.8 : 0.0;
   const chartMax = baseMode === "light" ? 1.0 : 0.6;
@@ -684,23 +777,23 @@ function SidebarContent({
             height={32}
             className="w-8 h-8"
           />
-          <span className="font-bold text-lg tracking-tight">a11yPalette</span>
+          <h1 className="font-bold text-lg tracking-tight">a11yPalette</h1>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-6 space-y-6">
           <section className="space-y-4">
-            <div className="flex items-center space-x-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <h2 className="flex items-center space-x-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               <Settings2 size={16} />
-              <span>Configuration</span>
-            </div>
+              <span>{t("configuration")}</span>
+            </h2>
             <LayerCountInput value={layerCount} onChange={setLayerCount} />
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium leading-none">
-                  Lightness Curve
+                  {t("lightnessCurve")}
                 </label>
                 <Button
                   variant="ghost"
@@ -708,7 +801,7 @@ function SidebarContent({
                   className="h-6 text-xs"
                   onClick={() => setCustomLightness(undefined)}
                 >
-                  Reset
+                  {t("reset")}
                 </Button>
               </div>
               <LightnessChart
@@ -733,12 +826,12 @@ function SidebarContent({
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Invert Layers
+                  {t("invertLayers")}
                 </label>
                 <p className="text-xs text-muted-foreground">
                   {layerDirection === "normal"
-                    ? "Light to Dark"
-                    : "Dark to Light"}
+                    ? t("lightToDark")
+                    : t("darkToLight")}
                 </p>
               </div>
               <Switch
@@ -753,32 +846,32 @@ function SidebarContent({
           <Separator />
 
           <section className="space-y-4">
-            <div className="flex items-center space-x-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <h2 className="flex items-center space-x-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               <Palette size={16} />
-              <span>Brand Colors</span>
-            </div>
+              <span>{t("brandColors")}</span>
+            </h2>
             <div className="space-y-6">
               <OKLCHColorPicker
                 label="Primary"
                 color={primaryColor}
                 onChange={setPrimaryColor}
-                mode={baseMode}
+                backgroundHex={currentBgHex}
               />
               <OKLCHColorPicker
                 label="Secondary"
                 color={secondaryColor}
                 onChange={setSecondaryColor}
-                mode={baseMode}
                 disabled={!showSecondary}
                 onToggle={setShowSecondary}
+                backgroundHex={currentBgHex}
               />
               <OKLCHColorPicker
                 label="Tertiary"
                 color={tertiaryColor}
                 onChange={setTertiaryColor}
-                mode={baseMode}
                 disabled={!showTertiary}
                 onToggle={setShowTertiary}
+                backgroundHex={currentBgHex}
               />
             </div>
           </section>
@@ -786,9 +879,9 @@ function SidebarContent({
           <Separator />
 
           <section className="space-y-4 pb-6">
-            <div className="flex items-center space-x-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <span>Chroma Groups</span>
-            </div>
+            <h2 className="flex items-center space-x-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <span>{t("chromaGroups")}</span>
+            </h2>
             <ColorGroupCreator onAdd={handleAddChromaGroup} />
             <div className="space-y-2">
               {chromaGroups.map((group) => (
@@ -814,3 +907,73 @@ function SidebarContent({
     </div>
   );
 }
+
+const CopyLinkButton = () => {
+  const t = useTranslations("ColorGenerator");
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Link copied to clipboard");
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleCopyLink}
+      title={t("copyLink")}
+      aria-label={t("copyLink")}
+    >
+      <Copy size={20} />
+    </Button>
+  );
+};
+
+const ShareButton = () => {
+  const t = useTranslations("ColorGenerator");
+  const handleShare = async () => {
+    // Basic share implementation, extend as needed
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "a11yPalette",
+          text: "Check out this accessible color palette!",
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.error("Error sharing", err);
+      }
+    } else {
+      toast.info("Sharing not supported on this browser");
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleShare}
+      title={t("share")}
+      aria-label={t("share")}
+    >
+      <Share2 size={20} />
+    </Button>
+  );
+};
+
+const BuyMeACoffeeButton = () => {
+  const t = useTranslations("ColorGenerator");
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() =>
+        window.open("https://www.buymeacoffee.com/gigaptera", "_blank")
+      }
+      title={t("buyMeACoffee")}
+      aria-label={t("buyMeACoffee")}
+      className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-950/30"
+    >
+      <Coffee size={20} />
+    </Button>
+  );
+};

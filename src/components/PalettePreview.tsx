@@ -6,7 +6,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { HexColorPicker } from "react-colorful";
-import { Edit2, Copy, Check } from "lucide-react";
+import { Edit2, Copy, Check, AlertTriangle } from "lucide-react";
+import {
+  SimulationType,
+  simulateColorBlindness,
+  isDistinguishable,
+} from "@/lib/color/simulation";
 
 interface PalettePreviewProps {
   role: string;
@@ -14,6 +19,7 @@ interface PalettePreviewProps {
   layers?: LayerScale[];
   overrides?: Record<string, string>;
   onOverride?: (variableName: string, hex: string) => void;
+  simulationMode?: SimulationType;
 }
 
 export default function PalettePreview({
@@ -22,6 +28,7 @@ export default function PalettePreview({
   layers,
   overrides = {},
   onOverride,
+  simulationMode = "none",
 }: PalettePreviewProps) {
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
 
@@ -55,13 +62,29 @@ export default function PalettePreview({
             const hex = overrides[layer.variableName] || layer.hex;
             const onHex = overrides[layer.onVariableName] || layer.onHex;
             const isCopied = copiedHex === hex;
+
+            const displayHex = simulateColorBlindness(hex, simulationMode);
+            const displayOnHex = simulateColorBlindness(onHex, simulationMode);
+
+            const hasConflict =
+              simulationMode !== "none" &&
+              !isDistinguishable(displayHex, displayOnHex);
+
             return (
               <Popover key={layer.step}>
                 <PopoverTrigger asChild>
                   <div
                     className="group relative flex flex-col p-4 rounded-xl shadow-sm transition-all duration-200 hover:scale-110 hover:z-10 hover:shadow-xl ring-1 ring-border cursor-pointer"
-                    style={{ backgroundColor: hex, color: onHex }}
+                    style={{ backgroundColor: displayHex, color: displayOnHex }}
                   >
+                    {hasConflict && (
+                      <div
+                        className="absolute top-1 right-1 text-red-500 bg-white/80 rounded-full p-0.5"
+                        title="Low contrast in simulation"
+                      >
+                        <AlertTriangle size={12} />
+                      </div>
+                    )}
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs font-bold opacity-50 capitalize">
                         {layer.name}
@@ -150,49 +173,60 @@ export default function PalettePreview({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium capitalize">{role} Colors</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {variants.map((variant) => {
             const hex = overrides[variant.variableName] || variant.hex;
             const onHex = overrides[variant.onVariableName] || variant.onHex;
             const isCopied = copiedHex === hex;
 
+            const displayHex = simulateColorBlindness(hex, simulationMode);
+            const displayOnHex = simulateColorBlindness(onHex, simulationMode);
+
+            const hasConflict =
+              simulationMode !== "none" &&
+              !isDistinguishable(displayHex, displayOnHex);
+
             return (
               <Popover key={variant.name}>
                 <PopoverTrigger asChild>
                   <div
-                    className="group relative flex flex-col p-6 rounded-xl shadow-sm transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl ring-1 ring-border cursor-pointer"
-                    style={{ backgroundColor: hex, color: onHex }}
+                    className="group relative flex flex-col p-3 rounded-lg shadow-sm transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-lg ring-1 ring-border cursor-pointer h-24"
+                    style={{ backgroundColor: displayHex, color: displayOnHex }}
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-sm font-bold capitalize opacity-90">
+                    {hasConflict && (
+                      <div
+                        className="absolute top-1 right-1 text-red-500 bg-white/80 rounded-full p-0.5"
+                        title="Low contrast in simulation"
+                      >
+                        <AlertTriangle size={12} />
+                      </div>
+                    )}
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-bold capitalize opacity-90 truncate w-full pr-2">
                         {variant.name}
                       </span>
-                      <Edit2 className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+                      <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
                     </div>
-                    <div className="mt-auto space-y-1">
+                    <div className="mt-auto space-y-0.5">
                       <div
-                        className="flex items-center gap-2 group/hex cursor-pointer"
+                        className="flex items-center gap-1 group/hex cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           copyToClipboard(hex);
                         }}
                       >
-                        <p className="text-lg font-mono font-semibold select-all flex-1">
+                        <p className="text-sm font-mono font-semibold select-all">
                           {hex}
                         </p>
                         {isCopied ? (
-                          <Check className="w-4 h-4 opacity-70" />
+                          <Check className="w-3 h-3 opacity-70" />
                         ) : (
-                          <Copy className="w-4 h-4 opacity-0 group-hover/hex:opacity-70 transition-opacity" />
+                          <Copy className="w-3 h-3 opacity-0 group-hover/hex:opacity-70 transition-opacity" />
                         )}
                       </div>
-                      <p className="text-xs opacity-70 select-all">
+                      <p className="text-[10px] opacity-70 select-all truncate">
                         {variant.variableName}
                       </p>
-                      <div className="flex items-center gap-1 text-xs opacity-60 pt-2 border-t border-current/10">
-                        <span className="w-2 h-2 rounded-full bg-current" />
-                        <span className="font-mono">{onHex}</span>
-                      </div>
                     </div>
                   </div>
                 </PopoverTrigger>

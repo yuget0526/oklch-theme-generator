@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 interface BackgroundColorControlsProps {
   mode: "sync" | "custom";
@@ -27,8 +29,9 @@ export default function BackgroundColorControls({
   onChromaChange,
   onHexChange,
 }: BackgroundColorControlsProps) {
-  const MAX_CHROMA = 0.01;
-  const WARNING_THRESHOLD = 0.01;
+  const t = useTranslations("BackgroundColorControls");
+  const MAX_CHROMA = 0.03;
+  const WARNING_THRESHOLD = 0.02;
 
   const [hexInput, setHexInput] = useState(currentHex);
 
@@ -50,12 +53,19 @@ export default function BackgroundColorControls({
     }
   };
 
+  const handleHexKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleHexBlur();
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header with Title and Preview */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <Label className="text-sm font-medium">Background Color</Label>
+          <Label className="text-sm font-medium">{t("title")}</Label>
           <div className="flex items-center gap-2">
             <Switch
               id="bg-mode"
@@ -66,7 +76,7 @@ export default function BackgroundColorControls({
               htmlFor="bg-mode"
               className="text-xs text-muted-foreground font-normal cursor-pointer"
             >
-              {mode === "sync" ? "Sync mode" : "Custom mode"}
+              {mode === "sync" ? t("syncMode") : t("customMode")}
             </Label>
           </div>
         </div>
@@ -78,9 +88,18 @@ export default function BackgroundColorControls({
       </div>
 
       {mode === "sync" && (
-        <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground flex items-center gap-2">
-          <span>🔗</span>
-          Synced with Primary hue (Chroma: 0.008)
+        <div className="space-y-3">
+          <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground flex items-center gap-2">
+            <span>🔗</span>
+            {t("syncMessage")}
+          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => onModeChange(true)}
+          >
+            🎨 {t("customBackgroundButton")}
+          </Button>
         </div>
       )}
 
@@ -88,11 +107,14 @@ export default function BackgroundColorControls({
         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
           {/* HEX Input */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">HEX Color</Label>
+            <Label className="text-xs text-muted-foreground">
+              {t("hexColor")}
+            </Label>
             <Input
               value={hexInput}
               onChange={(e) => setHexInput(e.target.value)}
               onBlur={handleHexBlur}
+              onKeyDown={handleHexKeyDown}
               placeholder="#RRGGBB"
               className="font-mono text-sm"
             />
@@ -102,7 +124,7 @@ export default function BackgroundColorControls({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">
-                Chroma (C)
+                {t("chroma")}
               </Label>
               <span className="text-xs font-mono text-muted-foreground">
                 {chroma.toFixed(3)}
@@ -110,7 +132,7 @@ export default function BackgroundColorControls({
             </div>
             <Slider
               min={0}
-              max={0.04}
+              max={0.05}
               step={0.001}
               value={[chroma]}
               onValueChange={(vals) => onChromaChange(vals[0])}
@@ -122,13 +144,11 @@ export default function BackgroundColorControls({
                   ⚠️
                 </span>
                 <div className="text-xs text-amber-900 dark:text-amber-200">
-                  <p className="font-semibold mb-1">
-                    Chroma adjusted for readability
-                  </p>
+                  <p className="font-semibold mb-1">{t("chromaAdjusted")}</p>
                   <p className="text-amber-700 dark:text-amber-300">
                     {chroma > MAX_CHROMA
-                      ? `Value will be capped at ${MAX_CHROMA} to ensure text contrast.`
-                      : "Value exceeds recommended limit (0.01)."}
+                      ? t("chromaCapped", { max: MAX_CHROMA })
+                      : t("chromaExceeds")}
                   </p>
                 </div>
               </div>
@@ -138,7 +158,9 @@ export default function BackgroundColorControls({
           {/* Hue Slider (H) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Hue (H)</Label>
+              <Label className="text-xs text-muted-foreground">
+                {t("hue")}
+              </Label>
               <span className="text-xs font-mono text-muted-foreground">
                 {Math.round(hue)}°
               </span>

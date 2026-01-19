@@ -5,6 +5,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { getAccessibleLightnessRange } from "@/lib/color/color-utils";
 
 const toOklch = converter("oklch");
 
@@ -12,24 +14,20 @@ interface OKLCHColorPickerProps {
   label: string;
   color: string; // HEX color
   onChange: (hex: string) => void;
-  mode?: "light" | "dark";
+  backgroundHex: string; // Background color for contrast calculation
   disabled?: boolean;
-  onToggle?: (enabled: boolean) => void; // Added onToggle prop
+  onToggle?: (enabled: boolean) => void;
 }
-
-const RECOMMENDED_RANGES = {
-  light: { min: 0.45, max: 0.65 },
-  dark: { min: 0.65, max: 0.85 },
-};
 
 export default function OKLCHColorPicker({
   label,
   color,
   onChange,
-  mode = "light",
+  backgroundHex,
   disabled = false,
-  onToggle, // Destructured onToggle prop
+  onToggle,
 }: OKLCHColorPickerProps) {
+  const t = useTranslations("ColorGenerator");
   const [hexInput, setHexInput] = useState(color);
 
   // Derive OKLCH from incoming color prop
@@ -74,11 +72,27 @@ export default function OKLCHColorPicker({
     setHexInput(color);
   };
 
-  const l = oklch.l || 0;
-  const c = oklch.c || 0;
-  const h = oklch.h || 0;
+  const handleHexKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      // Validate and apply if valid HEX
+      if (/^#[0-9A-Fa-f]{6}$/.test(hexInput)) {
+        onChange(hexInput);
+      } else {
+        setHexInput(color);
+      }
+    }
+  };
 
-  const range = RECOMMENDED_RANGES[mode];
+  const l = Number((oklch.l || 0).toFixed(4));
+  const c = Number((oklch.c || 0).toFixed(4));
+  const h = Number((oklch.h || 0).toFixed(2));
+
+  // Calculate recommended range based on background contrast
+  const range = useMemo(() => {
+    return getAccessibleLightnessRange(backgroundHex, 45, c, h);
+  }, [backgroundHex, c, h]);
+
   const isUnsafeLightness = l < range.min || l > range.max;
   const hex = formatHex(oklch) || "#000000";
 
@@ -105,12 +119,15 @@ export default function OKLCHColorPicker({
         <>
           {/* HEX Input */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">HEX Color</Label>
+            <Label className="text-xs text-muted-foreground">
+              {t("hexColor") || "HEX Color"}
+            </Label>
             <Input
               type="text"
               value={hexInput}
               onChange={handleHexInputChange}
               onBlur={handleHexInputBlur}
+              onKeyDown={handleHexKeyDown}
               placeholder="#000000"
               className="font-mono text-sm"
               disabled={disabled}
@@ -122,11 +139,12 @@ export default function OKLCHColorPicker({
             <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
               <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-amber-700 dark:text-amber-400">
-                <p className="font-semibold">Check Lightness</p>
+                <p className="font-semibold">{t("checkLightness")}</p>
                 <p>
-                  For {mode} mode, recommended lightness is between{" "}
-                  {Math.round(range.min * 100)}% and{" "}
-                  {Math.round(range.max * 100)}%.
+                  {t("lightnessWarning", {
+                    min: Math.round(range.min * 100),
+                    max: Math.round(range.max * 100),
+                  })}
                 </p>
               </div>
             </div>
@@ -154,7 +172,7 @@ export default function OKLCHColorPicker({
                   }}
                 >
                   <span className="text-[10px] text-green-600 dark:text-green-400 font-mono mb-0.5">
-                    {range.min}
+                    {range.min.toFixed(2)}
                   </span>
                   <div className="w-px h-4 bg-green-500 dark:bg-green-400" />
                 </div>
@@ -168,7 +186,7 @@ export default function OKLCHColorPicker({
                   }}
                 >
                   <span className="text-[10px] text-green-600 dark:text-green-400 font-mono mb-0.5">
-                    {range.max}
+                    {range.max.toFixed(2)}
                   </span>
                   <div className="w-px h-4 bg-green-500 dark:bg-green-400" />
                 </div>
@@ -214,15 +232,31 @@ export default function OKLCHColorPicker({
                 {Math.round(h)}°
               </span>
             </div>
-            <Slider
-              value={[h]}
-              onValueChange={handleHChange}
-              min={0}
-              max={360}
-              step={1}
-              className="relative"
-              disabled={disabled}
-            />
+            <div className="relative">
+              <div
+                className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 rounded-full opacity-50 pointer-events-none"
+                style={{
+                  background: `linear-gradient(to right, 
+                    hsl(0, 100%, 50%), 
+                    hsl(60, 100%, 50%), 
+                    hsl(120, 100%, 50%), 
+                    hsl(180, 100%, 50%), 
+                    hsl(240, 100%, 50%), 
+                    hsl(300, 100%, 50%), 
+                    hsl(360, 100%, 50%)
+                  )`,
+                }}
+              />
+              <Slider
+                value={[h]}
+                onValueChange={handleHChange}
+                min={0}
+                max={360}
+                step={1}
+                className="relative z-10 [&_.bg-primary]:bg-transparent [&_.bg-secondary]:bg-transparent"
+                disabled={disabled}
+              />
+            </div>
           </div>
         </>
       )}

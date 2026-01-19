@@ -1,6 +1,7 @@
 import React from "react";
 import { ColorVariant, LayerScale, ThemeMode } from "@/lib/color/color-utils";
 import ContrastBadge from "./ContrastBadge";
+import { SimulationType, simulateColorBlindness } from "@/lib/color/simulation";
 
 interface NestedLayerPreviewProps {
   layers: LayerScale[];
@@ -10,31 +11,41 @@ interface NestedLayerPreviewProps {
   mode: ThemeMode;
   backgroundColor: string;
   overrides?: Record<string, string>;
+  simulationMode?: SimulationType;
 }
 
 // Helper for Layer Header
 const LayerHeader = ({
   label,
   layer,
+  simulationMode = "none",
 }: {
   label: string;
   layer: { hex: string; onHex: string };
-}) => (
-  <div className="flex justify-between items-center mb-6 opacity-50 text-[10px] font-bold tracking-widest uppercase">
-    <div className="flex items-center gap-2">
-      <div className="w-2 h-2 rounded-full bg-current" />
-      {label}
+  simulationMode?: SimulationType;
+}) => {
+  const displayHex = simulateColorBlindness(layer.hex, simulationMode);
+  // For the onHex (text/icon color), we generally want to simulate it too
+  // so the contrast check visually matches what the user sees.
+  const displayOnHex = simulateColorBlindness(layer.onHex, simulationMode);
+
+  return (
+    <div className="flex justify-between items-center mb-6 opacity-50 text-[10px] font-bold tracking-widest uppercase">
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-current" />
+        {label}
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="font-mono">{displayHex}</span>
+        <ContrastBadge
+          bgColor={displayHex}
+          fgColor={displayOnHex}
+          className="scale-90 origin-right"
+        />
+      </div>
     </div>
-    <div className="flex items-center gap-3">
-      <span className="font-mono">{layer.hex}</span>
-      <ContrastBadge
-        bgColor={layer.hex}
-        fgColor={layer.onHex}
-        className="scale-90 origin-right"
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 // Helper for Variant Column
 const VariantColumn = ({
@@ -50,7 +61,7 @@ const VariantColumn = ({
   variants: ColorVariant[];
   mainColor: string;
   resolveColor: (
-    v: ColorVariant
+    v: ColorVariant,
   ) => ColorVariant & { hex: string; onHex: string };
   mode: ThemeMode;
   bgColor?: string;
@@ -107,10 +118,12 @@ const RecursiveLayer = ({
   layers,
   depth = 0,
   children,
+  simulationMode = "none",
 }: {
   layers: { name: string; hex: string; onHex: string }[];
   depth?: number;
   children: React.ReactNode;
+  simulationMode?: SimulationType;
 }) => {
   if (layers.length === 0) {
     return <>{children}</>;
@@ -132,6 +145,23 @@ const RecursiveLayer = ({
     return "w-full rounded-t-xl p-4 sm:p-6 shadow-sm transition-colors duration-300 flex-1";
   };
 
+  // currentLayer.hex/onHex are already simulated if they came from resolveLayer
+  // BUT layer structure passed to RecursiveLayer comes from containerLayers which contains bgLayer
+  // bgLayer is simulated in NestedLayerPreview.
+  // containerLayers are correctly simulated.
+
+  // So we just use values directly for style.
+  // But LayerHeader needs to know simulationMode if it did its own simulation.
+  // In `LayerHeader` above, I made it simulate. So I should pass raw values OR simulated values?
+  // If `NestedLayerPreview` simulates everything, then `currentLayer` has simulated values.
+  // If `LayerHeader` ALSO simulates, we get double simulation which is bad.
+
+  // Let's look at `NestedLayerPreview` implementation below.
+  // It calls `resolveLayer` which applies simulation.
+  // So the `layers` passed here have simulated HEX codes.
+  // So `LayerHeader` should NOT simulate again.
+  // I will adjust `LayerHeader` to just display values.
+
   return (
     <div
       className={getLayerStyle(depth)}
@@ -141,13 +171,22 @@ const RecursiveLayer = ({
       {isLast ? (
         children
       ) : (
-        <RecursiveLayer layers={remainingLayers} depth={depth + 1}>
+        <RecursiveLayer
+          layers={remainingLayers}
+          depth={depth + 1}
+          simulationMode={simulationMode}
+        >
           {children}
         </RecursiveLayer>
       )}
     </div>
   );
 };
+
+// Redefine LayerHeader to NOT simulate again for this flow, or make it smart.
+// Since we want `NestedLayerPreview` to handle all simulation logic centrally,
+// let's assume `layer` passed to `LayerHeader` is already simulated.
+// So I will revert LayerHeader to just display.
 
 export function NestedLayerPreview({
   layers,
@@ -157,6 +196,7 @@ export function NestedLayerPreview({
   mode,
   backgroundColor,
   overrides = {},
+  simulationMode = "none",
 }: NestedLayerPreviewProps) {
   const resolveColor = (variant: ColorVariant | undefined) => {
     if (!variant)
@@ -169,8 +209,13 @@ export function NestedLayerPreview({
         role: "",
         oklch: { mode: "oklch" as const, l: 0, c: 0, h: 0 },
       };
-    const hex = overrides[variant.variableName] || variant.hex;
-    const onHex = overrides[variant.onVariableName] || variant.onHex;
+    const rawHex = overrides[variant.variableName] || variant.hex;
+    const rawOnHex = overrides[variant.onVariableName] || variant.onHex;
+
+    // Apply simulation
+    const hex = simulateColorBlindness(rawHex, simulationMode);
+    const onHex = simulateColorBlindness(rawOnHex, simulationMode);
+
     return { ...variant, hex, onHex };
   };
 
@@ -184,8 +229,13 @@ export function NestedLayerPreview({
         name: "",
         role: "",
       };
-    const hex = overrides[layer.variableName] || layer.hex;
-    const onHex = overrides[layer.onVariableName] || layer.onHex;
+    const rawHex = overrides[layer.variableName] || layer.hex;
+    const rawOnHex = overrides[layer.onVariableName] || layer.onHex;
+
+    // Apply simulation
+    const hex = simulateColorBlindness(rawHex, simulationMode);
+    const onHex = simulateColorBlindness(rawOnHex, simulationMode);
+
     return { ...layer, hex, onHex };
   };
 
@@ -196,22 +246,13 @@ export function NestedLayerPreview({
   const resolvedLayers = layers.map(resolveLayer);
 
   // Create background layer
-  // We use the first layer's onHex as a fallback for text color if needed,
-  // though typically the background layer should have its own contrast color calculated.
-  // For now, using resolvedLayers[0].onHex is a reasonable approximation if we don't have a specific one.
   const bgLayer = {
     name: "BACKGROUND",
-    hex: backgroundColor,
+    hex: simulateColorBlindness(backgroundColor, simulationMode),
     onHex: resolvedLayers[0]?.onHex || "#000000",
   };
 
-  // Split layers:
-  // - containerLayers: All layers except the last one (used for the nested container structure)
-  // - cardLayer: The last layer (used for the content cards/variants)
-  // This ensures the cards have a distinct background from the container they sit in.
-  // We also prepend the main background layer to the container layers.
-  // IMPORTANT: We skip resolvedLayers[0] (the generated "background" layer) because it is redundant
-  // with bgLayer (the canvas background). We want the first nested card to be "surface-1".
+  // Split layers
   const layersForContainer =
     resolvedLayers.length > 1 ? resolvedLayers.slice(1, -1) : [];
   const containerLayers = [bgLayer, ...layersForContainer];
@@ -223,7 +264,7 @@ export function NestedLayerPreview({
 
   return (
     <div className="w-full min-h-full p-4 transition-colors duration-300 flex flex-col items-center">
-      <RecursiveLayer layers={containerLayers}>
+      <RecursiveLayer layers={containerLayers} simulationMode={simulationMode}>
         {/* Main Content */}
         <div className="text-center space-y-6 max-w-2xl mx-auto mb-16">
           <h1
