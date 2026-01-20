@@ -212,6 +212,10 @@ Open [http://localhost:3000](http://localhost:3000) to use the tool.
 - **Color Library**: culori
 - **Language**: TypeScript
 
+### Privacy
+
+This application uses **Google Analytics** to collect anonymous usage data (e.g., page views, button clicks) to help improve the user experience. No personally identifiable information (PII) is collected or stored.
+
 ---
 
 <a name="japanese"></a>
@@ -410,6 +414,10 @@ npm start
 - **UI コンポーネント**: shadcn/ui
 - **カラーライブラリ**: culori
 - **言語**: TypeScript
+
+### プライバシーについて
+
+本アプリケーションでは、ユーザー体験の向上を目的として **Google Analytics** を使用し、匿名の利用データ（ページビュー、クリック数など）を収集しています。個人を特定できる情報（PII）は収集・保存していません。
 
 ---
 
